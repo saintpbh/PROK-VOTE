@@ -1,0 +1,309 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Classic Theme (Default) */
+  --primary: 139 92 246;
+  /* #8B5CF6 Purple */
+  --secondary: 245 158 11;
+  /* #F59E0B Amber */
+  --accent: 236 72 153;
+  /* #EC4899 Pink */
+  --success: 16 185 129;
+  /* #10B981 Green */
+  --danger: 239 68 68;
+  /* #EF4444 Red */
+  --background: 17 24 39;
+  /* #111827 Dark gray */
+  --foreground: 255 255 255;
+  /* #FFFFFF White */
+  --card: 31 41 55;
+  /* #1F2937 */
+  --card-foreground: 243 244 246;
+  /* #F3F4F6 */
+  --muted: 55 65 81;
+  /* #374151 */
+  --muted-foreground: 156 163 175;
+  /* #9CA3AF */
+  --border: 55 65 81;
+  --surface: 31 41 55;
+}
+
+/* 1. Serious (진중함/신뢰) - Deep Navy & Slate */
+[data-theme="serious"] {
+  --primary: 30 58 138;
+  --secondary: 71 85 105;
+  --accent: 15 118 110;
+  --success: 21 128 61;
+  /* Deep Green */
+  --danger: 153 27 27;
+  --background: 15 23 42;
+  --surface: 30 41 59;
+}
+
+/* 2. Trust (신뢰도/전문성) - Professional Blue & Royal */
+[data-theme="trust"] {
+  --primary: 37 99 235;
+  --secondary: 15 118 110;
+  --accent: 45 212 191;
+  --success: 5 150 105;
+  --danger: 220 38 38;
+  --background: 2 6 23;
+  --surface: 15 23 42;
+}
+
+/* 3. Fancy (화려함/축제) - Purple & Amber Gradient style */
+[data-theme="fancy"] {
+  --primary: 192 38 211;
+  --secondary: 245 158 11;
+  --accent: 252 211 77;
+  --success: 16 185 129;
+  --danger: 244 63 94;
+  --background: 24 9 36;
+  --surface: 46 16 71;
+}
+
+/* 4. Modern (세련됨/현대적) - Emerald & Dark Gray */
+[data-theme="modern"] {
+  --primary: 16 185 129;
+  --secondary: 99 102 241;
+  --accent: 129 140 248;
+  --success: 34 197 94;
+  --danger: 225 29 72;
+  --background: 10 10 10;
+  --surface: 38 38 38;
+}
+
+/* 5. Vibrant (활기찬/열정) - Orange & Red */
+[data-theme="vibrant"] {
+  --primary: 249 115 22;
+  --secondary: 225 29 72;
+  --accent: 253 224 71;
+  --success: 20 184 166;
+  --danger: 190 18 60;
+  --background: 28 10 2;
+  --surface: 69 26 3;
+}
+
+/* 6. Elegant (품격/권위) - Maroon & Gold */
+[data-theme="elegant"] {
+  --primary: 153 27 27;
+  --secondary: 202 138 4;
+  --accent: 253 224 71;
+  --success: 101 163 13;
+  --danger: 127 29 29;
+  --background: 24 4 4;
+  --surface: 69 10 10;
+}
+
+/* 7. Eco (안정감/자연) - Forest Green & Teal */
+[data-theme="eco"] {
+  --primary: 21 128 61;
+  --secondary: 20 184 166;
+  --accent: 167 243 208;
+  --success: 22 163 74;
+  --danger: 220 38 38;
+  --background: 6 20 18;
+  --surface: 20 40 36;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+
+  /* Glassmorphism effect */
+  .glass {
+    @apply bg-white/10 backdrop-blur-lg border border-white/20;
+  }
+
+  /* Button base styles */
+  .btn {
+    @apply px-6 py-3 rounded-lg font-semibold transition-all duration-150;
+    @apply hover:scale-105 active:scale-95;
+  }
+
+  .btn-primary {
+    @apply bg-primary/100 text-white hover:bg-primary/90;
+  }
+
+  .btn-secondary {
+    @apply bg-secondary/100 text-white hover:bg-secondary/90;
+  }
+
+  .btn-success {
+    @apply bg-success/100 text-white hover:bg-success/90;
+  }
+
+  .btn-danger {
+    @apply bg-danger text-white hover:opacity-90;
+  }
+
+  /* Card styles */
+  .card {
+    background-color: rgba(var(--surface), 0.5);
+    color: rgb(var(--card-foreground));
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* Input styles */
+  .input {
+    @apply w-full px-4 py-3 rounded-lg bg-muted/50 border border-border;
+    @apply focus:outline-none focus:ring-2 focus:ring-primary/50;
+    @apply transition-all duration-150;
+  }
+}
+
+@layer utilities {
+
+  /* Count-up animation for numbers */
+  @keyframes countup {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-countup {
+    animation: countup 0.5s ease-out;
+  }
+
+  /* Pulse animation for active state */
+  @keyframes pulse-slow {
+
+    0%,
+    100% {
+      opacity: 1;
+    }
+
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  .animate-pulse-slow {
+    animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .shadow-glow {
+    filter: drop-shadow(0 0 10px rgb(var(--primary) / 0.5));
+  }
+
+  /* Slide in from bottom */
+  @keyframes slide-in-bottom {
+    from {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .animate-slide-in-bottom {
+    animation: slide-in-bottom 0.3s ease-out;
+  }
+
+  /* Gradient X Movement */
+  @keyframes gradient-x {
+    0% {
+      background-position: 0% 50%;
+    }
+
+    50% {
+      background-position: 100% 50%;
+    }
+
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  .animate-gradient-x {
+    background-size: 200% 200%;
+    animation: gradient-x 3s ease infinite;
+  }
+
+  /* Slow Spin Reverse */
+  @keyframes spin-reverse {
+    from {
+      transform: rotate(360deg);
+    }
+
+    to {
+      transform: rotate(0deg);
+    }
+  }
+
+  .animate-spin-slow-reverse {
+    animation: spin-reverse 30s linear infinite;
+  }
+
+  /* Slight Bounce */
+  @keyframes bounce-slight {
+
+    0%,
+    100% {
+      transform: translateY(-5%);
+      animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+    }
+
+    50% {
+      transform: translateY(0);
+      animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+    }
+  }
+
+  .animate-bounce-slight {
+    animation: bounce-slight 2s infinite;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-background;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-muted rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-muted-foreground;
+}
+
+/* Print styles for QR PDF */
+@media print {
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
+  body {
+    @apply bg-white text-black;
+  }
+}
