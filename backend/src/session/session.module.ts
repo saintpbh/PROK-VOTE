@@ -7,11 +7,13 @@ import { AuthModule } from '../auth/auth.module';
 import { VotingModule } from '../voting/voting.module';
 import { UsersModule } from '../users/users.module';
 import { SmsModule } from '../sms/sms.module';
+import { AuditModule } from '../audit/audit.module';
 
 @Module({
     imports: [
         TypeOrmModule.forFeature([Session, Agenda, Voter]),
         AuthModule, // Import AuthModule to access FingerprintService
+        AuditModule,
         UsersModule,
         SmsModule,
         forwardRef(() => VotingModule),

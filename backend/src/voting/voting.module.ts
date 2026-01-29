@@ -6,11 +6,13 @@ import { VotingController } from './voting.controller';
 import { Vote, Voter, Agenda, Session } from '../entities';
 import { AuthModule } from '../auth/auth.module';
 import { SessionModule } from '../session/session.module';
+import { AuditModule } from '../audit/audit.module';
 
 @Module({
     imports: [
         TypeOrmModule.forFeature([Vote, Voter, Agenda, Session]),
         AuthModule,
+        AuditModule,
         forwardRef(() => SessionModule),
     ],
     providers: [VotingGateway, VotingService],
