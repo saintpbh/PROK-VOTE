@@ -293,8 +293,9 @@ export class AuthService {
      * Public User Registration
      */
     async registerUser(data: { username: string; password: string; email?: string }): Promise<{ success: boolean; message: string }> {
+        const username = data.username.trim();
         // Check if username already exists
-        const existingUser = await this.usersService.findByUsername(data.username);
+        const existingUser = await this.usersService.findByUsername(username);
         if (existingUser) {
             throw new BadRequestException('Username already exists');
         }
