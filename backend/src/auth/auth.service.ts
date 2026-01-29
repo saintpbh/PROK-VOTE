@@ -248,6 +248,7 @@ export class AuthService {
         const user = await this.usersService.findByUsername(dto.username);
 
         if (!user || !user.isActive) {
+            console.log(`[Auth] Login attempt failed: User '${dto.username}' not found or inactive`);
             throw new UnauthorizedException('Invalid credentials or inactive account');
         }
 

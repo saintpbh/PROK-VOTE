@@ -12,15 +12,21 @@ export class UsersService implements OnModuleInit {
     ) { }
 
     async onModuleInit() {
-        // Seed default super admin if 'admin' user doesn't exist
+        const password = process.env.SUPER_ADMIN_PASSWORD || 'admin123';
         const adminUser = await this.findByUsername('admin');
+
         if (!adminUser) {
             console.log('🌱 Admin user not found. Seeding default super admin...');
-            const password = process.env.SUPER_ADMIN_PASSWORD || 'admin123';
             await this.createUser('admin', password, UserRole.SUPER_ADMIN);
-            console.log('✅ Default super admin created: admin (PW: ' + (process.env.SUPER_ADMIN_PASSWORD ? 'FROM_ENV' : 'admin123') + ')');
+            console.log(`✅ Default super admin created: admin (PW: ${process.env.SUPER_ADMIN_PASSWORD ? 'FROM_ENV' : 'admin123'})`);
+        } else if (process.env.SUPER_ADMIN_PASSWORD) {
+            // Force update password if environment variable is consciously set
+            console.log('🛡️ Admin user exists. Syncing password with environment variable...');
+            const passwordHash = await bcrypt.hash(password, 10);
+            await this.usersRepository.update(adminUser.id, { passwordHash });
+            console.log('✅ Admin password updated from environment variable.');
         } else {
-            console.log('🛡️ Admin user already exists.');
+            console.log('🛡️ Admin user already exists. Use current password or set SUPER_ADMIN_PASSWORD to reset.');
         }
     }
 
