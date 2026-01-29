@@ -15,12 +15,6 @@ export class AuditLog {
     id: string;
 
 
-    @Column({ name: 'session_id', nullable: true, insert: false, update: false })
-    sessionId: string;
-
-    @Column({ name: 'voter_id', nullable: true, insert: false, update: false })
-    voterId: string;
-
     @Column({ type: 'varchar', length: 100, name: 'event_type' })
     eventType: string;
 

@@ -57,7 +57,8 @@ export class AuditService {
             .take(limit);
 
         if (sessionId) {
-            query.andWhere('log.sessionId = :sessionId', { sessionId });
+            // Filter by joined session relation
+            query.andWhere('session.id = :sessionId', { sessionId });
         }
 
         if (eventType) {
