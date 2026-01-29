@@ -13,6 +13,7 @@ async function bootstrap() {
             const rawAllowedOrigins = [
                 'http://localhost:3000',
                 'http://192.168.1.211:3010',
+                'https://zestful-flexibility-production-9ea4.up.railway.app',
                 configService.get('FRONTEND_URL'),
                 configService.get('PRODUCTION_URL'),
             ].filter(Boolean);

@@ -31,6 +31,7 @@ interface SocketWithVoter extends Socket {
             const allowedOrigins = [
                 'http://localhost:3000',
                 'http://192.168.1.211:3010',
+                'https://zestful-flexibility-production-9ea4.up.railway.app',
                 process.env.FRONTEND_URL,
                 process.env.PRODUCTION_URL,
             ].filter(Boolean) as string[];
