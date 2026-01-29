@@ -10,17 +10,22 @@ async function bootstrap() {
     // Enable CORS for frontend
     app.enableCors({
         origin: (requestOrigin, callback) => {
-            const allowedOrigins = [
+            const rawAllowedOrigins = [
                 'http://localhost:3000',
                 'http://192.168.1.211:3010',
                 configService.get('FRONTEND_URL'),
                 configService.get('PRODUCTION_URL'),
             ].filter(Boolean);
 
-            if (!requestOrigin || allowedOrigins.includes(requestOrigin)) {
+            // Normalize: remove trailing slash
+            const allowedOrigins = rawAllowedOrigins.map(o => o.replace(/\/$/, ''));
+            const normalizedOrigin = requestOrigin ? requestOrigin.replace(/\/$/, '') : null;
+
+            if (!normalizedOrigin || allowedOrigins.includes(normalizedOrigin)) {
                 callback(null, true);
             } else {
-                console.log('Blocked CORS origin:', requestOrigin);
+                console.log('[CORS] Blocked origin:', requestOrigin);
+                console.log('[CORS] Allowed origins (normalized):', allowedOrigins);
                 callback(new Error('Not allowed by CORS'));
             }
         },
