@@ -245,20 +245,31 @@ export class AuthService {
      * User (Super Admin or Manager) Login
      */
     async userLogin(dto: UserLoginDto): Promise<{ accessToken: string; user: any }> {
-        const user = await this.usersService.findByUsername(dto.username);
+        const username = dto.username.trim();
+        const rawPassword = dto.password.trim();
+
+        const user = await this.usersService.findByUsername(username);
 
         if (!user || !user.isActive) {
-            console.log(`[Auth] Login attempt failed: User '${dto.username}' not found or inactive`);
+            console.log(`[Auth] Login attempt failed: User '${username}' not found or inactive`);
             throw new UnauthorizedException('Invalid credentials or inactive account');
         }
 
-        const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
+        const isPasswordValid = await bcrypt.compare(rawPassword, user.passwordHash);
+
+        // Admin-specific diagnostic (Safe to log match status, not password)
+        if (username === 'admin') {
+            const envPassword = (process.env.SUPER_ADMIN_PASSWORD || 'admin123').trim();
+            console.log(`[Auth] Admin password length received: ${rawPassword.length}`);
+            console.log(`[Auth] Admin password matches ENV source: ${rawPassword === envPassword}`);
+        }
+
         if (!isPasswordValid) {
-            console.log(`[Auth] Login failed for user: ${dto.username} (Invalid Password)`);
+            console.log(`[Auth] Login failed for user: ${username} (Invalid Password)`);
             throw new UnauthorizedException('Invalid credentials');
         }
 
-        console.log(`[Auth] Login successful for user: ${dto.username} (Role: ${user.role})`);
+        console.log(`[Auth] Login successful for user: ${username} (Role: ${user.role})`);
 
         const payload = {
             userId: user.id,
