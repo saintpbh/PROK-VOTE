@@ -55,22 +55,36 @@ export default function SystemMonitor() {
         <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Memory Card */}
+                {/* Memory Card */}
                 <div className="card p-4 space-y-3">
                     <div className="flex justify-between items-center text-sm font-medium">
-                        <span>메모리 사용량 (RAM)</span>
-                        <span className={memoryUsage > 80 ? 'text-danger font-bold' : 'text-muted-foreground'}>
-                            {memoryUsage}%
-                        </span>
+                        <span>메모리 (앱 / 전체)</span>
+                        <span className="text-muted-foreground">{status.processMemory ? formatBytes(status.processMemory.rss) : 'N/A'}</span>
                     </div>
-                    <div className="w-full bg-muted rounded-full h-2.5 overflow-hidden">
-                        <div
-                            className={`h-full transition-all duration-500 ${memoryColor}`}
-                            style={{ width: `${memoryUsage}%` }}
-                        ></div>
+
+                    {/* App Memory */}
+                    <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>App (RSS)</span>
+                            <span>{formatBytes(status.processMemory?.rss || 0)}</span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                            <div className="h-full bg-primary" style={{ width: '5%' }}></div>
+                        </div>
                     </div>
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>사용: {formatBytes(status.memory.used)}</span>
-                        <span>전체: {formatBytes(status.memory.total)}</span>
+
+                    {/* Host Memory */}
+                    <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>Host ({memoryUsage}%)</span>
+                            <span>{formatBytes(status.memory.total)}</span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                            <div
+                                className={`h-full ${memoryColor}`}
+                                style={{ width: `${memoryUsage}%` }}
+                            ></div>
+                        </div>
                     </div>
                 </div>
 
@@ -138,9 +152,9 @@ export default function SystemMonitor() {
                         {memoryUsage > 80 ? '리소스 부족 경고' : '현재 서버 상태 안정적'}
                     </h4>
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                        {memoryUsage > 80
-                            ? '현재 메모리 사용량이 높아 대규모 투표 시 지연이 발생할 수 있습니다. 상단의 설정을 통해 성능 쿼터를 조정하거나 서버 사양 상향을 검토해 주세요.'
-                            : '현재 리소스 여유가 충분합니다. 2,000명 규모의 실시간 투표를 안정적으로 처리할 수 있는 상태입니다.'}
+                        {memoryUsage > 90
+                            ? '호스트 서버의 메모리 사용량이 매우 높습니다. Railway 공유 서버의 부하일 수 있으니, App Memory(RSS)가 안정적이라면 큰 문제는 없습니다.'
+                            : '현재 앱의 메모리 사용량은 안정적입니다. 표시되는 전체 메모리는 공유 호스트 서버의 수치이므로 70% 이상이어도 정상입니다.'}
                     </p>
                 </div>
             </div>

@@ -79,6 +79,7 @@ export class SettingsService implements OnModuleInit {
             uptime: os.uptime(),
             processUptime: process.uptime(),
             nodeVersion: process.version,
+            processMemory: process.memoryUsage(),
         };
     }
 
