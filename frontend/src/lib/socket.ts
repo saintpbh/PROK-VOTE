@@ -1,6 +1,11 @@
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001';
+let SOCKET_URL = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001';
+
+// Ensure absolute URL
+if (SOCKET_URL && !SOCKET_URL.startsWith('http') && typeof window !== 'undefined') {
+    SOCKET_URL = `https://${SOCKET_URL}`;
+}
 
 class SocketService {
     private socket: Socket | null = null;

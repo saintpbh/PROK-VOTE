@@ -1,6 +1,11 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3011';
+let API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3011';
+
+// Ensure absolute URL
+if (API_BASE_URL && !API_BASE_URL.startsWith('http') && typeof window !== 'undefined') {
+    API_BASE_URL = `https://${API_BASE_URL}`;
+}
 
 class ApiClient {
     private client: AxiosInstance;
