@@ -12,19 +12,25 @@ export class UsersService implements OnModuleInit {
     ) { }
 
     async onModuleInit() {
-        const password = process.env.SUPER_ADMIN_PASSWORD || 'admin123';
+        // Enforce trim on environment variable to prevent hidden spaces/newlines
+        const envPassword = process.env.SUPER_ADMIN_PASSWORD ? process.env.SUPER_ADMIN_PASSWORD.trim() : null;
+        const password = envPassword || 'admin123';
         const adminUser = await this.findByUsername('admin');
 
         if (!adminUser) {
             console.log('🌱 Admin user not found. Seeding default super admin...');
             await this.createUser('admin', password, UserRole.SUPER_ADMIN);
-            console.log(`✅ Default super admin created: admin (PW: ${process.env.SUPER_ADMIN_PASSWORD ? 'FROM_ENV' : 'admin123'})`);
-        } else if (process.env.SUPER_ADMIN_PASSWORD) {
-            // Force update password if environment variable is consciously set
-            console.log('🛡️ Admin user exists. Syncing password with environment variable...');
+            console.log(`✅ Default super admin created: admin (PW: ${envPassword ? 'FROM_ENV' : 'admin123'})`);
+        } else if (envPassword) {
+            // Force update password and ensure ROLE is SUPER_ADMIN + ACTIVE if environment variable is set
+            console.log('🛡️ Admin user exists. Syncing credentials, role, and status with environment variable...');
             const passwordHash = await bcrypt.hash(password, 10);
-            await this.usersRepository.update(adminUser.id, { passwordHash });
-            console.log('✅ Admin password updated from environment variable.');
+            await this.usersRepository.update(adminUser.id, {
+                passwordHash,
+                role: UserRole.SUPER_ADMIN,
+                isActive: true
+            });
+            console.log('✅ Admin account fully synced: admin (Role: SUPER_ADMIN, Status: ACTIVE)');
         } else {
             console.log('🛡️ Admin user already exists. Use current password or set SUPER_ADMIN_PASSWORD to reset.');
         }
