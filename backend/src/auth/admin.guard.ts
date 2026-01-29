@@ -28,6 +28,7 @@ export class AdminGuard implements CanActivate {
             const payload = await this.jwtService.verifyAsync(token);
 
             if (payload.role !== 'SUPER_ADMIN' && payload.role !== 'VOTE_MANAGER') {
+                console.log(`🚫 AdminGuard: Insufficient permissions for user ${payload.username} (role: ${payload.role})`);
                 throw new UnauthorizedException('Insufficient permissions');
             }
 
@@ -35,6 +36,7 @@ export class AdminGuard implements CanActivate {
             request.user = payload;
             return true;
         } catch (error) {
+            console.log(`🚫 AdminGuard: Token verification failed: ${error.message}`);
             throw new UnauthorizedException('Invalid or expired token');
         }
     }

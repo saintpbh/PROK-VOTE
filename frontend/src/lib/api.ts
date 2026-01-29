@@ -35,17 +35,21 @@ class ApiClient {
         this.client.interceptors.response.use(
             (response) => response.data,
             (error: AxiosError) => {
+                const apiError = new Error() as any;
                 if (error.response) {
                     // Server responded with error
-                    const message = (error.response.data as any)?.message || 'Server error';
-                    return Promise.reject(new Error(message));
+                    apiError.message = (error.response.data as any)?.message || 'Server error';
+                    apiError.status = error.response.status;
+                    apiError.data = error.response.data;
                 } else if (error.request) {
                     // Request made but no response
-                    return Promise.reject(new Error('No response from server'));
+                    apiError.message = 'No response from server';
+                    apiError.status = 0;
                 } else {
                     // Something else happened
-                    return Promise.reject(error);
+                    apiError.message = error.message;
                 }
+                return Promise.reject(apiError);
             }
         );
     }

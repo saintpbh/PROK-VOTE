@@ -21,6 +21,7 @@ export default function VotePage() {
 
     const [state, setState] = useState<VoterState>('loading');
     const [tokenData, setTokenData] = useState<any>(null);
+    const [isSocketConnected, setIsSocketConnected] = useState(false);
     const { isAuthenticated, voterId, sessionId } = useAuthStore();
     const { currentAgenda, setCurrentAgenda } = useSessionStore();
     const [theme, setTheme] = useState<string>('classic');
@@ -137,11 +138,24 @@ export default function VotePage() {
             socketService.joinSession(sessionId, voterId || undefined, 'voter');
 
             // Listeners
-            socketService.on('connect', () => {
+            const onConnect = () => {
                 console.log(`[VotePage] Socket connected: ${socketService.getSocket()?.id}`);
-                console.log(`[VotePage] Current Session ID: ${sessionId}`);
+                setIsSocketConnected(true);
                 checkVoteStatus();
-            });
+            };
+
+            const onDisconnect = () => {
+                console.log('[VotePage] Socket disconnected');
+                setIsSocketConnected(false);
+            };
+
+            socketService.on('connect', onConnect);
+            socketService.on('disconnect', onDisconnect);
+
+            // Manual check in case already connected
+            if (socket.connected) {
+                setIsSocketConnected(true);
+            }
 
             socketService.on('stage:changed', ({ agendaId, stage }) => {
                 console.log(`[VotePage] stage:changed received: ${stage} for ${agendaId}`);
@@ -212,7 +226,8 @@ export default function VotePage() {
             }
 
             return () => {
-                socketService.off('connect');
+                socketService.off('connect', onConnect);
+                socketService.off('disconnect', onDisconnect);
                 socketService.off('stage:changed');
                 socketService.off('vote:ended');
                 socketService.off('vote:confirmed');
@@ -230,6 +245,15 @@ export default function VotePage() {
         <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4 transition-colors duration-500" data-theme={theme}>
             {/* Ambient Background Gradient for modern look */}
             <div className="fixed inset-0 bg-gradient-to-br from-primary/10 via-background to-secondary/10 -z-10" />
+
+            {/* Socket Status Indicator (Debug) */}
+            <div className="fixed top-4 right-4 z-50 flex items-center gap-2 px-3 py-1 bg-black/20 backdrop-blur-md rounded-full border border-white/10 text-[10px] font-medium transition-all">
+                <div className={`w-1.5 h-1.5 rounded-full ${isSocketConnected ? 'bg-success animate-pulse' : 'bg-red-500'}`} />
+                <span className={isSocketConnected ? 'text-success/80' : 'text-red-500/80'}>
+                    {isSocketConnected ? 'Live' : 'Disconnected'}
+                </span>
+            </div>
+
             {state === 'loading' && <Loading fullScreen />}
 
             {state === 'auth' && (

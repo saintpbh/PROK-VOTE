@@ -18,7 +18,7 @@ class SocketService {
             this.socket.disconnect();
         }
 
-        console.log('[Socket] Connecting to:', SOCKET_URL);
+        console.log('[Socket] Attempting connection to:', SOCKET_URL);
         this.socket = io(SOCKET_URL, {
             autoConnect: true,
             reconnection: true,
@@ -26,9 +26,11 @@ class SocketService {
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
             timeout: 20000,
+            transports: ['websocket', 'polling'], // Prioritize websocket
             auth: (cb) => {
                 const adminToken = typeof window !== 'undefined' ? localStorage.getItem('admin_access_token') : null;
                 const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+                console.log('[Socket] Sending auth token:', !!(adminToken || token));
                 cb({ token: adminToken || token });
             }
         });

@@ -12,7 +12,7 @@ async function bootstrap() {
         origin: (requestOrigin, callback) => {
             const allowedOrigins = [
                 'http://localhost:3000',
-                'http://localhost:3010',
+                'http://192.168.1.211:3010',
                 configService.get('FRONTEND_URL'),
                 configService.get('PRODUCTION_URL'),
             ].filter(Boolean);
@@ -37,10 +37,10 @@ async function bootstrap() {
     );
 
     const port = configService.get('PORT') || 3001;
-    await app.listen(port);
+    await app.listen(port, '0.0.0.0');
 
-    console.log(`🚀 PROK Vote Backend running on http://localhost:${port}`);
-    console.log(`🔌 WebSocket server ready for real-time connections`);
+    console.log(`🚀 PROK Vote Backend running on http://192.168.1.211:${port}`);
+    console.log(`🔌 WebSocket server ready for real-time connections (Listening on 0.0.0.0)`);
 }
 
 bootstrap();

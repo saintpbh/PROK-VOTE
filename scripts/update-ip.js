@@ -62,16 +62,13 @@ try {
 
     // Strategy: Regex to find the lines with IP-based URLs and replace them
     // Matches http://<IP>:3010 and http://<IP>:3011
-    const ipRegex = /'http:\/\/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:(3010|3011)'/g;
+    // Strategy: Match both existing IPs and localhost to replace with current local IP
+    const anyHostRegex = /'http:\/\/(localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(3010 | 3011)'/g;
 
-    if (content.match(ipRegex)) {
-        content = content.replace(/'http:\/\/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:3010'/g, `'http://${localIp}:3010'`);
-        content = content.replace(/'http:\/\/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:3011'/g, `'http://${localIp}:3011'`);
-        fs.writeFileSync(backendMainPath, content);
-        console.log(`✅ Updated backend/src/main.ts with IP: ${localIp}`);
-    } else {
-        console.log(`⚠️  Could not find IP pattern in backend/src/main.ts. Please check manually.`);
-    }
+    content = content.replace(/'http:\/\/(localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):3010'/g, `'http://${localIp}:3010'`);
+    content = content.replace(/'http:\/\/(localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):3011'/g, `'http://${localIp}:3011'`);
+    fs.writeFileSync(backendMainPath, content);
+    console.log(`✅ Updated backend/src/main.ts with IP: ${localIp}`);
 } catch (error) {
     console.error(`❌ Failed to update backend/src/main.ts: ${error.message}`);
 }
@@ -81,15 +78,10 @@ const votingGatewayPath = path.join(__dirname, '..', 'backend', 'src', 'voting',
 try {
     let content = fs.readFileSync(votingGatewayPath, 'utf8');
 
-    // Same regex strategy
-    if (content.match(/'http:\/\/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:(3010|3011)'/)) {
-        content = content.replace(/'http:\/\/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:3010'/g, `'http://${localIp}:3010'`);
-        content = content.replace(/'http:\/\/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:3011'/g, `'http://${localIp}:3011'`);
-        fs.writeFileSync(votingGatewayPath, content);
-        console.log(`✅ Updated backend/src/voting/voting.gateway.ts with IP: ${localIp}`);
-    } else {
-        console.log(`⚠️  Could not find IP pattern in backend/src/voting/voting.gateway.ts. Please check manually.`);
-    }
+    content = content.replace(/'http:\/\/(localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):3010'/g, `'http://${localIp}:3010'`);
+    content = content.replace(/'http:\/\/(localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):3011'/g, `'http://${localIp}:3011'`);
+    fs.writeFileSync(votingGatewayPath, content);
+    console.log(`✅ Updated backend/src/voting/voting.gateway.ts with IP: ${localIp}`);
 } catch (error) {
     console.error(`❌ Failed to update backend/src/voting/voting.gateway.ts: ${error.message}`);
 }

@@ -38,16 +38,16 @@ export default function AdminPage() {
                 }
             }
 
-            if (activeTab !== 'sessions' && !currentSession) {
-                try {
-                    const res = await api.getAllSessions();
-                    setSessions(res.sessions || []);
-                } catch (error: any) {
-                    console.error('Failed to fetch sessions:', error);
-                    if (error.status === 401) {
-                        api.removeToken();
-                        router.replace('/admin/login');
-                    }
+            try {
+                const res = await api.getAllSessions();
+                setSessions(res.sessions || []);
+            } catch (error: any) {
+                console.error('Initial session fetch failed:', error);
+                if (error.status === 401) {
+                    toast.error('세션이 만료되었습니다. 다시 로그인해주세요.');
+                    api.removeToken();
+                    localStorage.removeItem('admin_user');
+                    router.replace('/admin/login');
                 }
             }
         };

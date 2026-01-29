@@ -29,14 +29,22 @@ interface SocketWithVoter extends Socket {
         origin: (requestOrigin, callback) => {
             const allowedOrigins = [
                 'http://localhost:3000',
-                'http://localhost:3010',
+                'http://192.168.1.211:3010',
                 process.env.FRONTEND_URL,
                 process.env.PRODUCTION_URL,
             ].filter(Boolean) as string[];
 
-            if (!requestOrigin || allowedOrigins.includes(requestOrigin)) {
+            console.log(`[Socket CORS] Origin: ${requestOrigin}, Allowed: ${allowedOrigins.join(', ')}`);
+
+            const cleanOrigin = requestOrigin?.replace(/\/$/, '');
+            const cleanAllowed = allowedOrigins.map(o => o.replace(/\/$/, ''));
+
+            console.log(`[Socket CORS] Origin: ${requestOrigin} (Clean: ${cleanOrigin}), Allowed: ${cleanAllowed.join(', ')}`);
+
+            if (!requestOrigin || cleanAllowed.includes(cleanOrigin)) {
                 callback(null, true);
             } else {
+                console.warn(`[Socket CORS] REJECTED: ${requestOrigin}`);
                 callback(new Error('Not allowed by CORS'));
             }
         },
@@ -74,12 +82,12 @@ export class VotingGateway implements OnGatewayConnection, OnGatewayDisconnect {
                 // Attach user data to socket for later use
                 (client as any).user = payload;
 
-                console.log(`Client connected: ${client.id} (User: ${payload.sub || payload.voterId}, Role: ${payload.role})`);
+                console.log(`[Gateway] Client ${client.id} AUTHENTICATED (Voter: ${payload.voterId}, Session: ${payload.sessionId})`);
             } else {
-                console.log(`Client connected: ${client.id} (Anonymous/Display)`);
+                console.log(`[Gateway] Client ${client.id} connected (Anonymous/Display)`);
             }
         } catch (error) {
-            console.log(`Client ${client.id} connection rejected: ${error.message}`);
+            console.warn(`[Gateway] Client ${client.id} CONNECTION REJECTED: ${error.message}`);
             client.disconnect();
         }
     }
@@ -89,7 +97,7 @@ export class VotingGateway implements OnGatewayConnection, OnGatewayDisconnect {
      * Handle client disconnection
      */
     async handleDisconnect(client: SocketWithVoter) {
-        console.log(`Client disconnected: ${client.id}`);
+        console.log(`[Gateway] Client disconnected: ${client.id}`);
         this.connectedUsers.delete(client.id);
     }
 
@@ -114,7 +122,8 @@ export class VotingGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
         this.connectedUsers.set(client.id, client);
 
-        console.log(`[Gateway] Client ${client.id} joined room: ${room} as ${role || 'voter'}`);
+        const clientCount = (await this.server.in(room).fetchSockets()).length;
+        console.log(`[Gateway] Client ${client.id} joined room: ${room} as ${role || 'voter'}. Room total: ${clientCount}`);
 
         return {
             success: true,
