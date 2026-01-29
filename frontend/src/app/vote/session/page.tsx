@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Loading from '@/components/ui/Loading';
 import GlobalAuthFlow from '@/components/voter/GlobalAuthFlow';
@@ -15,7 +15,7 @@ import toast from 'react-hot-toast';
 
 type VoterState = 'loading' | 'auth' | 'waiting' | 'voting' | 'completed';
 
-export default function GlobalVotePage() {
+function GlobalVoteContent() {
     const searchParams = useSearchParams();
     const sessionIdFromUrl = searchParams.get('s');
 
@@ -147,5 +147,13 @@ export default function GlobalVotePage() {
 
             {state === 'completed' && <CompletedScreen />}
         </div>
+    );
+}
+
+export default function GlobalVotePage() {
+    return (
+        <Suspense fallback={<Loading fullScreen />}>
+            <GlobalVoteContent />
+        </Suspense>
     );
 }

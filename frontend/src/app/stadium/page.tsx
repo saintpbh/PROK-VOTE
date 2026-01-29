@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import CountUpDisplay from '@/components/stadium/CountUpDisplay';
 import socketService from '@/lib/socket';
@@ -9,7 +9,7 @@ import api from '@/lib/api';
 type Theme = 'classic' | 'serious' | 'trust' | 'fancy' | 'modern' | 'vibrant' | 'elegant' | 'eco';
 type Stage = 'pending' | 'submitted' | 'voting' | 'ended' | 'announced';
 
-export default function StadiumPage() {
+function StadiumContent() {
     const searchParams = useSearchParams();
     const sessionId = searchParams.get('session');
 
@@ -427,5 +427,15 @@ export default function StadiumPage() {
                 </button>
             </div>
         </div>
+    );
+}
+
+export default function StadiumPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-primary"></div>
+        </div>}>
+            <StadiumContent />
+        </Suspense>
     );
 }
