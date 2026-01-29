@@ -12,13 +12,15 @@ export class UsersService implements OnModuleInit {
     ) { }
 
     async onModuleInit() {
-        // Seed default super admin if none exists
-        const userCount = await this.usersRepository.count();
-        if (userCount === 0) {
-            console.log('🌱 No users found. Seeding default super admin...');
+        // Seed default super admin if 'admin' user doesn't exist
+        const adminUser = await this.findByUsername('admin');
+        if (!adminUser) {
+            console.log('🌱 Admin user not found. Seeding default super admin...');
             const password = process.env.SUPER_ADMIN_PASSWORD || 'admin123';
             await this.createUser('admin', password, UserRole.SUPER_ADMIN);
-            console.log('✅ Default super admin created: admin');
+            console.log('✅ Default super admin created: admin (PW: ' + (process.env.SUPER_ADMIN_PASSWORD ? 'FROM_ENV' : 'admin123') + ')');
+        } else {
+            console.log('🛡️ Admin user already exists.');
         }
     }
 

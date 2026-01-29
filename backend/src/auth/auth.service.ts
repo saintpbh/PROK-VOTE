@@ -253,8 +253,11 @@ export class AuthService {
 
         const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
         if (!isPasswordValid) {
+            console.log(`[Auth] Login failed for user: ${dto.username} (Invalid Password)`);
             throw new UnauthorizedException('Invalid credentials');
         }
+
+        console.log(`[Auth] Login successful for user: ${dto.username} (Role: ${user.role})`);
 
         const payload = {
             userId: user.id,
