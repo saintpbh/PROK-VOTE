@@ -2,6 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Vote, Voter, Agenda } from '../entities';
+import { AuditService } from '../audit/audit.service';
 import { CastVoteDto } from './dto/voting.dto';
 
 export interface VoteStatistics {
@@ -27,6 +28,7 @@ export class VotingService {
         private voterRepository: Repository<Voter>,
         @InjectRepository(Agenda)
         private agendaRepository: Repository<Agenda>,
+        private auditService: AuditService,
     ) { }
 
     /**
@@ -71,7 +73,16 @@ export class VotingService {
             choice: dto.choice,
         });
 
-        return await this.voteRepository.save(vote);
+        const savedVote = await this.voteRepository.save(vote);
+
+        await this.auditService.log({
+            eventType: 'VOTER_VOTE_CAST',
+            sessionId: agenda.sessionId,
+            voterId: voterId,
+            eventData: { agendaId: agenda.id, choice: dto.choice, voteId: savedVote.id }
+        });
+
+        return savedVote;
     }
 
     /**

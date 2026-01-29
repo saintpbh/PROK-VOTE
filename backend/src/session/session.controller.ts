@@ -33,7 +33,7 @@ export class SessionController {
     @Post()
     @UseGuards(AdminGuard)
     async createSession(@Body() dto: CreateSessionDto, @Req() req: any) {
-        const session = await this.sessionService.createSession(dto, req.user);
+        const session = await this.sessionService.createSession(dto, req.user, req);
         return {
             success: true,
             session,
@@ -100,7 +100,7 @@ export class SessionController {
     @UseGuards(AdminGuard)
     @HttpCode(HttpStatus.NO_CONTENT)
     async deleteSession(@Param('id') id: string, @Req() req: any) {
-        await this.sessionService.deleteSession(id, req.user);
+        await this.sessionService.deleteSession(id, req.user, req);
         return;
     }
 
@@ -157,8 +157,9 @@ export class SessionController {
     async updateAgendaStage(
         @Param('id') id: string,
         @Body() dto: UpdateAgendaStageDto,
+        @Req() req: any
     ) {
-        const agenda = await this.sessionService.updateAgendaStage(id, dto.stage);
+        const agenda = await this.sessionService.updateAgendaStage(id, dto.stage, req);
         return {
             success: true,
             agenda,
@@ -208,8 +209,8 @@ export class SessionController {
     @Post(':id/reset-participants')
     @UseGuards(AdminGuard)
     @HttpCode(HttpStatus.OK)
-    async resetParticipants(@Param('id') id: string) {
-        await this.sessionService.resetParticipants(id);
+    async resetParticipants(@Param('id') id: string, @Req() req: any) {
+        await this.sessionService.resetParticipants(id, req);
         return {
             success: true,
         };

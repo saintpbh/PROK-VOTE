@@ -10,6 +10,8 @@ import { VotingGateway } from '../voting/voting.gateway';
 import { UserRole } from '../entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { SmsService } from '../sms/sms.service';
+import { AuditService } from '../audit/audit.service';
+import { Request } from 'express';
 
 @Injectable()
 export class SessionService {
@@ -28,12 +30,13 @@ export class SessionService {
         private smsService: SmsService,
         @InjectRepository(Voter)
         private voterRepository: Repository<Voter>,
+        private auditService: AuditService,
     ) { }
 
     /**
      * Create a new voting session
      */
-    async createSession(dto: CreateSessionDto, user: any): Promise<Session> {
+    async createSession(dto: CreateSessionDto, user: any, req: Request): Promise<Session> {
         // Enforce quota for managers
         if (user.role === UserRole.VOTE_MANAGER) {
             const fullUser = await this.usersService.findById(user.userId);
@@ -58,7 +61,16 @@ export class SessionService {
             ownerId: user.userId,
         });
 
-        return await this.sessionRepository.save(session);
+        const savedSession = await this.sessionRepository.save(session);
+
+        await this.auditService.log({
+            eventType: 'ADMIN_CREATE_SESSION',
+            sessionId: savedSession.id,
+            eventData: { name: savedSession.name, ownerId: user.userId },
+            req
+        });
+
+        return savedSession;
     }
 
     /**
@@ -149,11 +161,13 @@ export class SessionService {
     async updateAgendaStage(
         agendaId: string,
         stage: 'pending' | 'submitted' | 'voting' | 'ended' | 'announced',
+        req?: Request,
     ): Promise<Agenda> {
         const agenda = await this.agendaRepository.findOne({
             where: { id: agendaId },
         });
 
+        const oldStage = agenda.stage;
         agenda.stage = stage;
 
         if (stage === 'voting') {
@@ -162,14 +176,33 @@ export class SessionService {
             agenda.endedAt = new Date();
         }
 
-        return await this.agendaRepository.save(agenda);
+        const updatedAgenda = await this.agendaRepository.save(agenda);
+
+        if (req) {
+            await this.auditService.log({
+                eventType: 'ADMIN_UPDATE_STAGE',
+                sessionId: updatedAgenda.sessionId,
+                eventData: { agendaId, oldStage, newStage: stage },
+                req
+            });
+        }
+
+        return updatedAgenda;
     }
 
     /**
      * Delete a session
      */
-    async deleteSession(sessionId: string, user: any): Promise<void> {
-        await this.getSessionWithAgendas(sessionId, user);
+    async deleteSession(sessionId: string, user: any, req: Request): Promise<void> {
+        const session = await this.getSessionWithAgendas(sessionId, user);
+
+        await this.auditService.log({
+            eventType: 'ADMIN_DELETE_SESSION',
+            sessionId: sessionId,
+            eventData: { name: session.name, ownerId: session.ownerId },
+            req
+        });
+
         await this.sessionRepository.delete(sessionId);
     }
 
@@ -254,7 +287,13 @@ export class SessionService {
         return updatedSession;
     }
 
-    async resetParticipants(sessionId: string): Promise<void> {
+    async resetParticipants(sessionId: string, req: Request): Promise<void> {
+        await this.auditService.log({
+            eventType: 'ADMIN_RESET_PARTICIPANTS',
+            sessionId,
+            eventData: { action: 'RESET_VOTERS' },
+            req
+        });
         await this.sessionRepository.manager.getRepository('voters').delete({ sessionId });
         this.votingGateway.notifyAuthRequired(sessionId);
     }

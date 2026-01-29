@@ -166,8 +166,8 @@ export class AuthController {
     @Post('admin/login')
     @Throttle({ default: { limit: 5, ttl: 60000 } })
     @HttpCode(HttpStatus.OK)
-    async adminLogin(@Body() dto: UserLoginDto) {
-        const result = await this.authService.userLogin(dto);
+    async adminLogin(@Body() dto: UserLoginDto, @Req() req: Request) {
+        const result = await this.authService.userLogin(dto, req);
         return {
             success: true,
             accessToken: result.accessToken,
@@ -182,7 +182,7 @@ export class AuthController {
     @Post('register')
     @Throttle({ default: { limit: 3, ttl: 60000 } }) // Max 3 registrations per minute per IP
     @HttpCode(HttpStatus.CREATED)
-    async register(@Body() data: { username: string; password: string; email?: string }) {
-        return await this.authService.registerUser(data);
+    async register(@Body() data: { username: string; password: string; email?: string }, @Req() req: Request) {
+        return await this.authService.registerUser(data, req);
     }
 }

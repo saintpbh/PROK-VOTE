@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
+import SystemMonitor from './SystemMonitor';
 
 export default function SystemSettings() {
     const [settings, setSettings] = useState<any[]>([]);
@@ -51,6 +52,13 @@ export default function SystemSettings() {
                 <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
                     ⚙️ 시스템 전역 설정
                 </h2>
+
+                <div className="mb-10">
+                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+                        📊 서버 실시간 모니터링
+                    </h3>
+                    <SystemMonitor />
+                </div>
 
                 <div className="space-y-8">
                     {/* Rate Limit Setting */}
@@ -144,8 +152,14 @@ export default function SystemSettings() {
                 </div>
             </div>
 
-            <div className="alert alert-info bg-blue-500/10 border-blue-500/20 text-blue-700 p-4 rounded-lg text-sm">
-                <p>💡 <b>Tip:</b> 1,000명 규모의 행사라면 속도 제한을 최소 10,000 이상으로 유지하는 것을 권장합니다.</p>
+            <div className="alert alert-info bg-indigo-500/10 border-indigo-500/20 text-indigo-700 p-4 rounded-lg text-sm mt-8">
+                <div className="flex gap-3">
+                    <span className="text-xl">💡</span>
+                    <div className="space-y-1">
+                        <p><b>성능 최적화 팁:</b> 1,000명 이상의 대규모 투표가 예정된 경우, <b>API 속도 제한</b>을 10,000 이상으로 상향하고 <b>메모리 사용율</b>을 모니터링하세요.</p>
+                        <p className="text-xs opacity-70">* 물리적인 서버 사양(CPU/RAM) 변경은 Railway 대시보드에서 수행해야 하며, 이곳에서는 애플리케이션 레벨의 제한을 제어합니다.</p>
+                    </div>
+                </div>
             </div>
         </div>
     );

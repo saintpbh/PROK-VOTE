@@ -276,6 +276,10 @@ class ApiClient {
         return this.client.post('/settings', { key, value, type });
     }
 
+    async getSystemStatus(): Promise<any> {
+        return this.client.get('/settings/status');
+    }
+
     // User Management (Super Admin)
     async getAllManagers(): Promise<any> {
         return this.client.get('/users/managers');
@@ -291,6 +295,15 @@ class ApiClient {
 
     async setUserStatus(id: string, isActive: boolean): Promise<any> {
         return this.client.put(`/users/managers/${id}/status`, { isActive });
+    }
+
+    // Audit Logs (Super Admin)
+    async getAuditLogs(params: { eventType?: string; sessionId?: string; voterId?: string; limit?: number }): Promise<any> {
+        return this.client.get('/audit', { params });
+    }
+
+    async exportAuditLogs(params: any): Promise<any> {
+        return this.client.get('/audit/export', { params, responseType: 'text' });
     }
 }
 

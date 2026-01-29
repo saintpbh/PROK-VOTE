@@ -13,6 +13,7 @@ import { UseGuards, Inject, forwardRef } from '@nestjs/common';
 import { VotingService } from './voting.service';
 import { SessionService } from '../session/session.service';
 import { AuthService } from '../auth/auth.service';
+import { AuditService } from '../audit/audit.service';
 import { CastVoteDto } from './dto/voting.dto';
 
 interface SocketWithVoter extends Socket {
@@ -65,6 +66,7 @@ export class VotingGateway implements OnGatewayConnection, OnGatewayDisconnect {
         private sessionService: SessionService,
         @Inject(forwardRef(() => AuthService))
         private authService: AuthService,
+        private auditService: AuditService,
     ) { }
 
     /**
@@ -82,6 +84,17 @@ export class VotingGateway implements OnGatewayConnection, OnGatewayDisconnect {
                 // Attach user data to socket for later use
                 (client as any).user = payload;
 
+                await this.auditService.log({
+                    eventType: 'VOTER_CONNECTED',
+                    sessionId: payload.sessionId,
+                    voterId: payload.voterId,
+                    eventData: { socketId: client.id },
+                    req: {
+                        headers: client.handshake.headers,
+                        socket: client.conn.remoteAddress ? { remoteAddress: client.conn.remoteAddress } : client.handshake.address
+                    } as any
+                });
+
                 console.log(`[Gateway] Client ${client.id} AUTHENTICATED (Voter: ${payload.voterId}, Session: ${payload.sessionId})`);
             } else {
                 console.log(`[Gateway] Client ${client.id} connected (Anonymous/Display)`);
@@ -97,6 +110,18 @@ export class VotingGateway implements OnGatewayConnection, OnGatewayDisconnect {
      * Handle client disconnection
      */
     async handleDisconnect(client: SocketWithVoter) {
+        if (client.voterId && client.sessionId) {
+            await this.auditService.log({
+                eventType: 'VOTER_DISCONNECTED',
+                sessionId: client.sessionId,
+                voterId: client.voterId,
+                eventData: { socketId: client.id },
+                req: {
+                    headers: client.handshake.headers,
+                    socket: client.conn.remoteAddress ? { remoteAddress: client.conn.remoteAddress } : client.handshake.address
+                } as any
+            });
+        }
         console.log(`[Gateway] Client disconnected: ${client.id}`);
         this.connectedUsers.delete(client.id);
     }
@@ -205,6 +230,17 @@ export class VotingGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
             // Save vote to database
             const vote = await this.votingService.castVote(voterId, data);
+
+            await this.auditService.log({
+                eventType: 'VOTE_CAST',
+                sessionId: client.sessionId,
+                voterId: voterId,
+                eventData: { agendaId: data.agendaId, choice: data.choice, voteId: vote.id },
+                req: {
+                    headers: client.handshake.headers,
+                    socket: client.conn.remoteAddress ? { remoteAddress: client.conn.remoteAddress } : client.handshake.address
+                } as any
+            });
 
             // Get updated statistics
             const stats = await this.votingService.getAgendaStatistics(data.agendaId);

@@ -16,6 +16,15 @@ export class SettingsController {
         };
     }
 
+    @Get('status')
+    async getStatus() {
+        const status = await this.settingsService.getSystemStatus();
+        return {
+            success: true,
+            status,
+        };
+    }
+
     @Post()
     async update(@Body() body: { key: string, value: string, type: 'string' | 'number' | 'boolean' | 'json' }) {
         const setting = await this.settingsService.updateSetting(body.key, body.value, body.type);

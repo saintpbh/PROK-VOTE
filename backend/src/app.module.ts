@@ -12,6 +12,7 @@ import { SettingsModule } from './settings/settings.module';
 import { DynamicThrottlerGuard } from './auth/dynamic-throttler.guard';
 import { UsersModule } from './users/users.module';
 import { SmsModule } from './sms/sms.module';
+import { AuditModule } from './audit/audit.module';
 
 @Module({
     imports: [
@@ -56,6 +57,7 @@ import { SmsModule } from './sms/sms.module';
         SettingsModule,
         UsersModule,
         SmsModule,
+        AuditModule,
     ],
     providers: [
         {

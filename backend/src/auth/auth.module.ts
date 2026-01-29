@@ -1,4 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
+import { AuditModule } from '../audit/audit.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -14,6 +15,7 @@ import { UsersModule } from '../users/users.module';
     imports: [
         TypeOrmModule.forFeature([Session, Token, Voter]),
         forwardRef(() => UsersModule),
+        forwardRef(() => AuditModule),
         JwtModule.registerAsync({
             imports: [ConfigModule],
             inject: [ConfigService],

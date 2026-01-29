@@ -10,6 +10,9 @@ import { CompleteAuthDto, UserLoginDto } from './dto/auth.dto';
 import { UsersService } from '../users/users.service';
 import * as bcrypt from 'bcrypt';
 
+import { AuditService } from '../audit/audit.service';
+import { Request } from 'express';
+
 @Injectable()
 export class AuthService {
     constructor(
@@ -22,6 +25,7 @@ export class AuthService {
         private fingerprintService: FingerprintService,
         private jwtService: JwtService,
         private usersService: UsersService,
+        private auditService: AuditService,
     ) { }
 
     /**
@@ -102,6 +106,17 @@ export class AuthService {
 
         const accessToken = this.jwtService.sign(payload);
 
+        await this.auditService.log({
+            eventType: 'VOTER_AUTHENTICATED',
+            sessionId: session.id,
+            voterId: voter.id,
+            eventData: { method: 'QR_TOKEN', tokenId: dto.tokenId },
+            req: {
+                headers: { 'user-agent': userAgent },
+                socket: { remoteAddress: ipAddress }
+            } as any
+        });
+
         return { accessToken, voter };
     }
 
@@ -167,10 +182,6 @@ export class AuthService {
                 accessCodeVerified: true,
             });
             await this.voterRepository.save(voter);
-        } else if (dto.name && voter.name !== dto.name) {
-            // Update name if it changed
-            voter.name = dto.name;
-            await this.voterRepository.save(voter);
         }
 
         // 6. Generate JWT token
@@ -181,6 +192,17 @@ export class AuthService {
         };
 
         const accessToken = this.jwtService.sign(payload);
+
+        await this.auditService.log({
+            eventType: 'VOTER_AUTHENTICATED',
+            sessionId: session.id,
+            voterId: voter.id,
+            eventData: { method: 'GLOBAL_LINK', name: voter.name },
+            req: {
+                headers: { 'user-agent': userAgent },
+                socket: { remoteAddress: ipAddress }
+            } as any
+        });
 
         return { accessToken, voter };
     }
@@ -244,32 +266,37 @@ export class AuthService {
     /**
      * User (Super Admin or Manager) Login
      */
-    async userLogin(dto: UserLoginDto): Promise<{ accessToken: string; user: any }> {
+    async userLogin(dto: UserLoginDto, req: Request): Promise<{ accessToken: string; user: any }> {
         const username = dto.username.trim();
         const rawPassword = dto.password.trim();
 
         const user = await this.usersService.findByUsername(username);
 
         if (!user || !user.isActive) {
-            console.log(`[Auth] Login attempt failed: User '${username}' not found or inactive`);
+            await this.auditService.log({
+                eventType: 'ADMIN_LOGIN_FAILURE',
+                eventData: { username, reason: 'user_not_found_or_inactive' },
+                req
+            });
             throw new UnauthorizedException('Invalid credentials or inactive account');
         }
 
         const isPasswordValid = await bcrypt.compare(rawPassword, user.passwordHash);
 
-        // Admin-specific diagnostic (Safe to log match status, not password)
-        if (username === 'admin') {
-            const envPassword = (process.env.SUPER_ADMIN_PASSWORD || 'admin123').trim();
-            console.log(`[Auth] Admin password length received: ${rawPassword.length}`);
-            console.log(`[Auth] Admin password matches ENV source: ${rawPassword === envPassword}`);
-        }
-
         if (!isPasswordValid) {
-            console.log(`[Auth] Login failed for user: ${username} (Invalid Password)`);
+            await this.auditService.log({
+                eventType: 'ADMIN_LOGIN_FAILURE',
+                eventData: { username: user.username, reason: 'invalid_password' },
+                req
+            });
             throw new UnauthorizedException('Invalid credentials');
         }
 
-        console.log(`[Auth] Login successful for user: ${username} (Role: ${user.role})`);
+        await this.auditService.log({
+            eventType: 'ADMIN_LOGIN_SUCCESS',
+            eventData: { username: user.username, role: user.role },
+            req
+        });
 
         const payload = {
             userId: user.id,
@@ -292,7 +319,7 @@ export class AuthService {
     /**
      * Public User Registration
      */
-    async registerUser(data: { username: string; password: string; email?: string }): Promise<{ success: boolean; message: string }> {
+    async registerUser(data: { username: string; password: string; email?: string }, req: Request): Promise<{ success: boolean; message: string }> {
         const username = data.username.trim();
         // Check if username already exists
         const existingUser = await this.usersService.findByUsername(username);
@@ -301,7 +328,7 @@ export class AuthService {
         }
 
         // Validate username format (3-20 alphanumeric + underscore)
-        if (!/^[a-zA-Z0-9_]{3,20}$/.test(data.username)) {
+        if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
             throw new BadRequestException('Username must be 3-20 characters (alphanumeric and underscore only)');
         }
 
@@ -314,8 +341,8 @@ export class AuthService {
         const passwordHash = await bcrypt.hash(data.password, 10);
 
         // Create user with default free-tier quotas
-        await this.usersService.createUser({
-            username: data.username,
+        const newUser = await this.usersService.createUser({
+            username: username,
             email: data.email,
             passwordHash,
             role: 'VOTE_MANAGER' as any,
@@ -323,6 +350,12 @@ export class AuthService {
             maxSessions: 5,
             maxAgendasPerSession: 20,
             maxVotersPerSession: 500,
+        });
+
+        await this.auditService.log({
+            eventType: 'USER_REGISTER',
+            eventData: { userId: newUser.id, username: newUser.username },
+            req
         });
 
         return {

@@ -12,9 +12,10 @@ import socketService from '@/lib/socket';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import UserManager from '@/components/admin/UserManager';
+import AuditLogViewer from '@/components/admin/AuditLogViewer';
 
 export default function AdminPage() {
-    const [activeTab, setActiveTab] = useState<'sessions' | 'qr' | 'agendas' | 'control' | 'settings' | 'users'>('sessions');
+    const [activeTab, setActiveTab] = useState<'sessions' | 'qr' | 'agendas' | 'control' | 'settings' | 'users' | 'audit'>('sessions');
     const { currentSession, setCurrentSession, currentAgenda } = useSessionStore();
     const [sessions, setSessions] = useState<any[]>([]);
     const [user, setUser] = useState<any>(null);
@@ -90,6 +91,7 @@ export default function AdminPage() {
     const tabs = [
         { id: 'users', label: '사용자 관리', icon: '👥', roles: ['SUPER_ADMIN'] },
         { id: 'settings', label: '시스템 설정', icon: '⚙️', roles: ['SUPER_ADMIN'] },
+        { id: 'audit', label: '오딧 로그', icon: '⚖️', roles: ['SUPER_ADMIN'] },
         { id: 'sessions', label: '세션 관리', icon: '🏢', roles: ['SUPER_ADMIN', 'VOTE_MANAGER'] },
         { id: 'qr', label: 'QR 생성', icon: '📱', roles: ['SUPER_ADMIN', 'VOTE_MANAGER'] },
         { id: 'agendas', label: '안건 관리', icon: '📋', roles: ['SUPER_ADMIN', 'VOTE_MANAGER'] },
@@ -249,6 +251,7 @@ export default function AdminPage() {
                     )}
                     {activeTab === 'settings' && <SystemSettings />}
                     {activeTab === 'users' && <UserManager />}
+                    {activeTab === 'audit' && <AuditLogViewer />}
                 </div>
             </div >
         </div >

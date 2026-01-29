@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import * as os from 'os';
 import { SystemSetting } from '../entities/system-setting.entity';
 
 @Injectable()
@@ -49,6 +50,36 @@ export class SettingsService implements OnModuleInit {
 
     async getAllSettings() {
         return await this.settingsRepository.find();
+    }
+
+    async getSystemStatus() {
+        const totalMem = os.totalmem();
+        const freeMem = os.freemem();
+        const usedMem = totalMem - freeMem;
+
+        const cpus = os.cpus();
+        const loadAvg = os.loadavg();
+
+        return {
+            platform: os.platform(),
+            arch: os.arch(),
+            cpus: cpus.length,
+            cpuModel: cpus[0].model,
+            memory: {
+                total: totalMem,
+                free: freeMem,
+                used: usedMem,
+                usagePercent: Math.round((usedMem / totalMem) * 100),
+            },
+            loadAvg: {
+                '1m': loadAvg[0],
+                '5m': loadAvg[1],
+                '15m': loadAvg[2],
+            },
+            uptime: os.uptime(),
+            processUptime: process.uptime(),
+            nodeVersion: process.version,
+        };
     }
 
     private parseValue(value: string, type: string) {
