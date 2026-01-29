@@ -6,6 +6,7 @@ class ApiClient {
     private client: AxiosInstance;
 
     constructor() {
+        console.log('[API] Initializing with base URL:', API_BASE_URL);
         this.client = axios.create({
             baseURL: API_BASE_URL,
             timeout: 15000,
