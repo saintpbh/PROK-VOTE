@@ -32,8 +32,8 @@ export class AuditService {
 
         const logEntry = this.auditRepository.create({
             eventType: data.eventType,
-            sessionId: data.sessionId,
-            voterId: data.voterId,
+            session: data.sessionId ? { id: data.sessionId } : null,
+            voter: data.voterId ? { id: data.voterId } : null,
             eventData: data.eventData,
             ipAddress,
             userAgent,
