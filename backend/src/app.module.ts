@@ -44,8 +44,8 @@ import { SmsModule } from './sms/sms.module';
                 password: configService.get('DATABASE_PASSWORD'),
                 database: configService.get('DATABASE_NAME'),
                 entities: [__dirname + '/**/*.entity{.ts,.js}'],
-                synchronize: configService.get('NODE_ENV') === 'development', // Auto-sync in dev only
-                logging: configService.get('NODE_ENV') === 'development',
+                synchronize: configService.get('DATABASE_SYNCHRONIZE') === 'true' || configService.get('NODE_ENV') === 'development',
+                logging: configService.get('NODE_ENV') === 'development' || configService.get('DATABASE_LOGGING') === 'true',
             }),
         }),
 
