@@ -1,0 +1,275 @@
+version: '3.8'
+
+# ============================================================
+# PROK 총회 IDC 서버 — 프로덕션 Docker Compose
+# ============================================================
+# 사용법:
+#   1. .env.production 파일 생성 (아래 env_file 참조)
+#   2. docker compose -f docker-compose.production.yml up -d
+#   3. Caddy가 자동으로 SSL 인증서 발급
+# ============================================================
+
+services:
+  # ──────────────────────────────────────────────
+  # 리버스 프록시 — Caddy (자동 SSL + 라우팅)
+  # ──────────────────────────────────────────────
+  caddy:
+    image: caddy:2-alpine
+    container_name: prok-proxy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"  # HTTP/3 (QUIC)
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - vote-backend
+      - vote-frontend
+    networks:
+      - prok-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  # ──────────────────────────────────────────────
+  # PROK Vote — Backend (NestJS + Socket.io)
+  # ──────────────────────────────────────────────
+  vote-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: prok-vote-backend
+    restart: always
+    env_file:
+      - .env.production
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - prok-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ──────────────────────────────────────────────
+  # PROK Vote — Frontend (Next.js Standalone)
+  # ──────────────────────────────────────────────
+  vote-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://vote-api.prok.org}
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-https://vote-api.prok.org}
+        NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL:-https://vote.prok.org}
+    container_name: prok-vote-frontend
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    networks:
+      - prok-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "30m"
+        max-file: "3"
+
+  # ──────────────────────────────────────────────
+  # PostgreSQL 16
+  # ──────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: prok-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DATABASE_USER:-prok_admin}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}
+      POSTGRES_DB: ${DATABASE_NAME:-prok_vote}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "127.0.0.1:5432:5432"  # 로컬만 접근 가능
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./database/backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-prok_admin} -d ${DATABASE_NAME:-prok_vote}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - prok-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+    command: >
+      postgres
+        -c max_connections=200
+        -c shared_buffers=1GB
+        -c effective_cache_size=3GB
+        -c work_mem=16MB
+        -c maintenance_work_mem=256MB
+        -c random_page_cost=1.1
+        -c effective_io_concurrency=200
+        -c wal_buffers=64MB
+        -c min_wal_size=1GB
+        -c max_wal_size=4GB
+        -c checkpoint_completion_target=0.9
+        -c default_statistics_target=100
+        -c log_min_duration_statement=1000
+        -c log_checkpoints=on
+        -c log_connections=on
+        -c log_disconnections=on
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ──────────────────────────────────────────────
+  # Redis 7
+  # ──────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: prok-redis
+    restart: always
+    ports:
+      - "127.0.0.1:6379:6379"  # 로컬만 접근 가능
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - prok-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    command: >
+      redis-server
+        --maxmemory 256mb
+        --maxmemory-policy allkeys-lru
+        --appendonly yes
+        --appendfsync everysec
+        --save 900 1
+        --save 300 10
+        --save 60 10000
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ──────────────────────────────────────────────
+  # 자동 백업 (PostgreSQL)
+  # ──────────────────────────────────────────────
+  db-backup:
+    image: postgres:16-alpine
+    container_name: prok-db-backup
+    restart: always
+    environment:
+      PGHOST: postgres
+      PGUSER: ${DATABASE_USER:-prok_admin}
+      PGPASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}
+      PGDATABASE: ${DATABASE_NAME:-prok_vote}
+    volumes:
+      - ./database/backups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - prok-network
+    # 매일 새벽 3시 백업, 30일 보관
+    entrypoint: >
+      sh -c '
+        while true; do
+          TIMESTAMP=$$(date +%Y%m%d_%H%M%S)
+          echo "[$$TIMESTAMP] Starting backup..."
+          pg_dump -Fc > /backups/prok_vote_$$TIMESTAMP.dump
+          echo "[$$TIMESTAMP] Backup completed: prok_vote_$$TIMESTAMP.dump"
+          
+          # 30일 이상 된 백업 삭제
+          find /backups -name "*.dump" -mtime +30 -delete
+          echo "[$$TIMESTAMP] Old backups cleaned"
+          
+          # 24시간 대기
+          sleep 86400
+        done
+      '
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+
+  # ──────────────────────────────────────────────
+  # Watchtower — Docker 이미지 자동 업데이트 (선택)
+  # ──────────────────────────────────────────────
+  watchtower:
+    image: containrrr/watchtower
+    container_name: prok-watchtower
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_POLL_INTERVAL: 86400  # 24시간마다
+      WATCHTOWER_INCLUDE_STOPPED: "false"
+      WATCHTOWER_SCOPE: "prok"
+    labels:
+      - "com.centurylinklabs.watchtower.scope=prok"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 128M
+
+networks:
+  prok-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local

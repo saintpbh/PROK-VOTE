@@ -1,0 +1,75 @@
+# ============================================================
+# PROK 총회 — Caddy 리버스 프록시 설정
+# ============================================================
+# SSL 인증서 자동 발급/갱신 (Let's Encrypt)
+# 도메인 DNS가 이 서버 IP를 가리켜야 작동합니다
+# ============================================================
+
+# 전역 설정
+{
+	email admin@prok.org
+}
+
+# ──────────────────────────────────────────────
+# PROK Vote — 프론트엔드 (Next.js)
+# ──────────────────────────────────────────────
+vote.prok.org {
+	# 보안 헤더
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		X-XSS-Protection "1; mode=block"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	# gzip 압축
+	encode gzip zstd
+
+	# Next.js 프론트엔드로 프록시
+	reverse_proxy vote-frontend:3000 {
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+}
+
+# ──────────────────────────────────────────────
+# PROK Vote — API + WebSocket (NestJS)
+# ──────────────────────────────────────────────
+vote-api.prok.org {
+	# 보안 헤더
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	# gzip 압축
+	encode gzip zstd
+
+	# NestJS 백엔드로 프록시 (REST + WebSocket)
+	reverse_proxy vote-backend:3001 {
+		# WebSocket 지원
+		header_up Connection {header.Connection}
+		header_up Upgrade {header.Upgrade}
+
+		# 실제 클라이언트 IP 전달 (audit 로그용)
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+
+		# WebSocket 타임아웃 (6시간 — 장시간 투표 세션 대응)
+		transport http {
+			read_timeout 21600s
+			write_timeout 21600s
+		}
+
+		# 헬스체크
+		health_uri /
+		health_interval 30s
+		health_timeout 10s
+	}
+}

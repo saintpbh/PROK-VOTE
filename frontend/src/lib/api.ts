@@ -244,7 +244,6 @@ class ApiClient {
         } catch (error) {
             console.error('Failed to generate token:', error);
             return { success: false };
-            return { success: false };
         }
     }
 
