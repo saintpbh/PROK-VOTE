@@ -60,6 +60,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - uploads_data:/app/uploads
     networks:
       - prok-network
     deploy:
@@ -268,6 +270,8 @@ volumes:
   postgres_data:
     driver: local
   redis_data:
+    driver: local
+  uploads_data:
     driver: local
   caddy_data:
     driver: local

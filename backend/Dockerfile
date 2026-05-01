@@ -33,6 +33,9 @@ COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
 COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
 COPY --chown=nestjs:nodejs package*.json ./
 
+# Create uploads directory for logo files
+RUN mkdir -p uploads && chown nestjs:nodejs uploads
+
 USER nestjs
 EXPOSE 3001
 CMD ["node", "dist/main"]

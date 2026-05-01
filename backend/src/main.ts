@@ -43,7 +43,7 @@ async function bootstrap() {
     const port = configService.get('PORT') || 3001;
     await app.listen(port, '0.0.0.0');
 
-    console.log(`🚀 PROK Vote Backend running on http://192.168.1.211:${port}`);
+    console.log(`🚀 PROK Vote Backend running on port ${port}`);
     console.log(`🔌 WebSocket server ready for real-time connections (Listening on 0.0.0.0)`);
 }
 
