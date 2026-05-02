@@ -16,7 +16,7 @@ export const metadata: Metadata = {
         icon: '/favicon.ico',
         apple: '/icon-192.png',
     },
-    themeColor: '#8B5CF6',
+    themeColor: '#1E3A8A',
     viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
 };
 

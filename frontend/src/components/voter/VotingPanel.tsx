@@ -69,19 +69,18 @@ export default function VotingPanel({ agenda, onVoteComplete }: VotingPanelProps
 
     const getChoiceStyle = (choice: string) => {
         const styles: Record<string, string> = {
-            찬성: 'bg-gradient-to-br from-success to-success/80 hover:from-success/90 hover:to-success/70',
-            반대: 'bg-gradient-to-br from-danger to-danger/80 hover:from-danger/90 hover:to-danger/70',
-            기권: 'bg-gradient-to-br from-muted to-muted/80 hover:from-muted/90 hover:to-muted/70',
+            찬성: 'bg-success hover:bg-success/90 text-white',
+            반대: 'bg-danger hover:bg-danger/90 text-white',
+            기권: 'bg-secondary hover:bg-secondary/90 text-white',
         };
-        // Generate valid class strings instead of using arbitrary strings that might be purged
-        return styles[choice] || 'bg-gradient-to-br from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70';
+        return styles[choice] || 'bg-primary hover:bg-primary/90 text-white';
     };
 
     const getChoiceIcon = (choice: string) => {
         const icons: Record<string, string> = {
-            찬성: '✅',
+            찬성: '⭕',
             반대: '❌',
-            기권: '⏸️',
+            기권: '➖',
         };
         return icons[choice] || '🗳️';
     };
@@ -92,50 +91,43 @@ export default function VotingPanel({ agenda, onVoteComplete }: VotingPanelProps
                 <div className="space-y-6">
                     {/* Agenda Information */}
                     <div className="text-center space-y-3">
-                        <div className="inline-block px-3 py-1 bg-success/20 text-success rounded-full text-sm font-semibold animate-pulse-slow">
+                        <div className="inline-block px-4 py-1.5 bg-primary/10 text-primary rounded-full text-sm font-semibold animate-pulse-slow border border-primary/20">
                             투표 진행 중
                         </div>
-                        <h1 className="text-2xl md:text-3xl font-bold">
+                        <h1 className="text-2xl md:text-3xl font-bold text-foreground">
                             {agenda.title}
                         </h1>
                         {agenda.description && (
-                            <p className="text-muted-foreground">
+                            <p className="text-muted-foreground text-lg">
                                 {agenda.description}
                             </p>
                         )}
                     </div>
 
-                    {/* Voting Buttons */}
                     {/* Voting Buttons based on Type */}
                     {(agenda.type === 'PROS_CONS' || !agenda.type) && (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 py-6">
                             <button
                                 onClick={() => handleChoiceClick('찬성')}
-                                className={`${getChoiceStyle(
-                                    '찬성'
-                                )} text-white p-8 rounded-2xl shadow-lg transition-all duration-150 hover:scale-105 active:scale-95 flex flex-col items-center justify-center gap-3`}
+                                className={`${getChoiceStyle('찬성')} p-8 rounded-2xl shadow-sm border border-black/5 transition-all duration-150 hover:scale-105 active:scale-95 flex flex-col items-center justify-center gap-3`}
                             >
-                                <span className="text-6xl">{getChoiceIcon('찬성')}</span>
+                                <span className="text-5xl drop-shadow-sm">{getChoiceIcon('찬성')}</span>
                                 <span className="text-2xl font-bold">찬성</span>
                             </button>
 
                             <button
                                 onClick={() => handleChoiceClick('반대')}
-                                className={`${getChoiceStyle(
-                                    '반대'
-                                )} text-white p-8 rounded-2xl shadow-lg transition-all duration-150 hover:scale-105 active:scale-95 flex flex-col items-center justify-center gap-3`}
+                                className={`${getChoiceStyle('반대')} p-8 rounded-2xl shadow-sm border border-black/5 transition-all duration-150 hover:scale-105 active:scale-95 flex flex-col items-center justify-center gap-3`}
                             >
-                                <span className="text-6xl">{getChoiceIcon('반대')}</span>
+                                <span className="text-5xl drop-shadow-sm">{getChoiceIcon('반대')}</span>
                                 <span className="text-2xl font-bold">반대</span>
                             </button>
 
                             <button
                                 onClick={() => handleChoiceClick('기권')}
-                                className={`${getChoiceStyle(
-                                    '기권'
-                                )} text-white p-8 rounded-2xl shadow-lg transition-all duration-150 hover:scale-105 active:scale-95 flex flex-col items-center justify-center gap-3`}
+                                className={`${getChoiceStyle('기권')} p-8 rounded-2xl shadow-sm border border-black/5 transition-all duration-150 hover:scale-105 active:scale-95 flex flex-col items-center justify-center gap-3`}
                             >
-                                <span className="text-6xl">{getChoiceIcon('기권')}</span>
+                                <span className="text-5xl opacity-80">{getChoiceIcon('기권')}</span>
                                 <span className="text-2xl font-bold">기권</span>
                             </button>
                         </div>

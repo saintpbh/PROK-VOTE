@@ -106,12 +106,12 @@ function StadiumContent() {
 
             socketService.on('stats:updated', (data) => {
                 console.log('[Stadium] stats:updated received, totalVotes:', data?.totalVotes);
-                setStats(prev => ({ ...prev, ...data }));
+                setStats((prev: any) => ({ ...prev, ...data }));
             });
 
             socketService.on('stats:response', (data) => {
                 console.log('[Stadium] stats:response received:', data.title);
-                setStats(prev => ({ ...prev, ...data }));
+                setStats((prev: any) => ({ ...prev, ...data }));
                 setAgendaTitle(data.title);
             });
 
@@ -198,7 +198,7 @@ function StadiumContent() {
                             alt="Logo" className="h-16 w-auto object-contain drop-shadow-lg" />
                     ) : (
                         <div className="flex flex-col">
-                            <h1 className="text-3xl font-black tracking-tighter bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                            <h1 className="text-3xl font-black tracking-tighter text-white">
                                 PROK VOTE
                             </h1>
                             <span className="text-sm text-slate-400 font-medium tracking-widest uppercase">Real-time Voting System</span>
@@ -239,8 +239,8 @@ function StadiumContent() {
                             </h2>
                             <div className="inline-flex items-center space-x-3 px-6 py-3 rounded-full bg-slate-900/50 border border-white/10 backdrop-blur-sm">
                                 <span className="relative flex h-3 w-3">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-success"></span>
                                 </span>
                                 <span className="text-xl text-slate-300 font-light tracking-wide uppercase">Meeting in Progress</span>
                             </div>
@@ -272,7 +272,7 @@ function StadiumContent() {
                 {/* VOTING STATE */}
                 {(!isPending && !forceShowLogo && currentStage === 'voting' && stats) && (
                     <div className="w-full flex flex-col items-center justify-center animate-fade-in">
-                        <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-green-400 via-blue-500 to-purple-500 animate-gradient-x" />
+                        <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-success via-primary to-secondary animate-gradient-x" />
 
                         <h2 className="text-4xl font-bold text-slate-300 mb-12 opacity-80">{stats.title}</h2>
 
@@ -298,8 +298,8 @@ function StadiumContent() {
                 {/* ENDED STATE */}
                 {(!isPending && !forceShowLogo && currentStage === 'ended') && (
                     <div className="flex flex-col items-center justify-center animate-scale-in">
-                        <div className="rounded-full bg-red-500/20 p-8 mb-8 backdrop-blur-md border border-red-500/30">
-                            <svg className="w-32 h-32 text-red-500 shadow-glow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="rounded-full bg-danger/20 p-8 mb-8 backdrop-blur-md border border-danger/30">
+                            <svg className="w-32 h-32 text-danger shadow-glow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
                             </svg>
@@ -314,7 +314,7 @@ function StadiumContent() {
                     <div className="w-full max-w-7xl mx-auto animate-slide-in-bottom flex flex-col h-full">
                         <div className="text-center mb-12">
                             <h2 className="text-5xl font-bold text-white mb-2">{stats.title}</h2>
-                            <span className="px-4 py-1 rounded-full bg-green-500/20 text-green-400 text-sm font-bold uppercase tracking-wider border border-green-500/20">Official Results</span>
+                            <span className="px-4 py-1 rounded-full bg-success/20 text-success text-sm font-bold uppercase tracking-wider border border-success/20">Official Results</span>
                         </div>
 
                         {/* Pros/Cons Result */}
