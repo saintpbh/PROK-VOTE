@@ -378,6 +378,14 @@ export class VotingGateway implements OnGatewayConnection, OnGatewayDisconnect {
             announcedAt: new Date().toISOString(),
         });
 
+        // Broadcast stage change for voter displays
+        console.log(`[Gateway] Broadcasting stage:changed (announced) to room ${room}`);
+        this.server.to(room).emit('stage:changed', {
+            agendaId,
+            stage: 'announced',
+            timestamp: new Date().toISOString(),
+        });
+
         return {
             success: true,
             stats,

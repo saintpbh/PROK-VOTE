@@ -33,8 +33,26 @@ export default function QRGenerator({ sessionId }: QRGeneratorProps) {
             setGeneratedTokens(tokens);
             toast.success(`${tokens.length}개의 QR 코드가 생성되었습니다`);
 
+            let baseUrl = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
+            
+            // Override localhost with real IP for mobile scanning
+            if (baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')) {
+                if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                    baseUrl = window.location.origin;
+                } else {
+                    try {
+                        const sysStatus = await api.getSystemStatus();
+                        if (sysStatus?.status?.localIp) {
+                            const port = window.location.port ? `:${window.location.port}` : '';
+                            baseUrl = `http://${sysStatus.status.localIp}${port}`;
+                        }
+                    } catch(e) {
+                        console.error('Failed to get local IP', e);
+                    }
+                }
+            }
+
             // Generate preview of first QR code
-            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
             const previewUrl = `${baseUrl}/vote/${tokens[0]}`;
             const previewDataUrl = await qrPDFGenerator.generateSingleQR(previewUrl);
             setPreview(previewDataUrl);
@@ -55,7 +73,25 @@ export default function QRGenerator({ sessionId }: QRGeneratorProps) {
 
         setLoading(true);
         try {
-            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
+            let baseUrl = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
+            
+            // Override localhost with real IP for mobile scanning
+            if (baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')) {
+                if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                    baseUrl = window.location.origin;
+                } else {
+                    try {
+                        const sysStatus = await api.getSystemStatus();
+                        if (sysStatus?.status?.localIp) {
+                            const port = window.location.port ? `:${window.location.port}` : '';
+                            baseUrl = `http://${sysStatus.status.localIp}${port}`;
+                        }
+                    } catch(e) {
+                        console.error('Failed to get local IP', e);
+                    }
+                }
+            }
+            
             await qrPDFGenerator.generatePDF(generatedTokens, baseUrl);
             toast.success('PDF 다운로드가 시작되었습니다');
         } catch (error: any) {

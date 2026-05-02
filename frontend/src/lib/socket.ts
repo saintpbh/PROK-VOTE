@@ -2,6 +2,13 @@ import { io, Socket } from 'socket.io-client';
 
 let SOCKET_URL = process.env.NEXT_PUBLIC_WS_URL;
 
+if (typeof window !== 'undefined') {
+    // Override localhost if accessed from a local network IP
+    if (SOCKET_URL && SOCKET_URL.includes('localhost') && window.location.hostname !== 'localhost') {
+        SOCKET_URL = `${window.location.protocol}//${window.location.hostname}:3001`;
+    }
+}
+
 if (!SOCKET_URL) {
     if (typeof window !== 'undefined') {
         SOCKET_URL = `${window.location.protocol}//${window.location.hostname}:3001`;

@@ -52,6 +52,21 @@ export class SettingsService implements OnModuleInit {
         return await this.settingsRepository.find();
     }
 
+    private getLocalIp(): string {
+        const interfaces = os.networkInterfaces();
+        for (const devName in interfaces) {
+            const iface = interfaces[devName];
+            if (!iface) continue;
+            for (let i = 0; i < iface.length; i++) {
+                const alias = iface[i];
+                if (alias.family === 'IPv4' && alias.address !== '127.0.0.1' && !alias.internal) {
+                    return alias.address;
+                }
+            }
+        }
+        return 'localhost';
+    }
+
     async getSystemStatus() {
         const totalMem = os.totalmem();
         const freeMem = os.freemem();
@@ -61,6 +76,7 @@ export class SettingsService implements OnModuleInit {
         const loadAvg = os.loadavg();
 
         return {
+            localIp: this.getLocalIp(),
             platform: os.platform(),
             arch: os.arch(),
             cpus: cpus.length,

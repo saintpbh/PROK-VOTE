@@ -105,13 +105,13 @@ function StadiumContent() {
             });
 
             socketService.on('stats:updated', (data) => {
-                console.log('[Stadium] stats:updated received');
-                setStats(data);
+                console.log('[Stadium] stats:updated received, totalVotes:', data?.totalVotes);
+                setStats(prev => ({ ...prev, ...data }));
             });
 
             socketService.on('stats:response', (data) => {
                 console.log('[Stadium] stats:response received:', data.title);
-                setStats(data);
+                setStats(prev => ({ ...prev, ...data }));
                 setAgendaTitle(data.title);
             });
 

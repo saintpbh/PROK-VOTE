@@ -2,6 +2,13 @@ import axios, { AxiosInstance, AxiosError } from 'axios';
 
 let API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
+if (typeof window !== 'undefined') {
+    // Override localhost if accessed from a local network IP
+    if (API_BASE_URL && API_BASE_URL.includes('localhost') && window.location.hostname !== 'localhost') {
+        API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:3001`;
+    }
+}
+
 if (!API_BASE_URL) {
     if (typeof window !== 'undefined') {
         API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:3001`;
