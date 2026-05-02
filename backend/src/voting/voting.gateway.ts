@@ -41,7 +41,14 @@ interface SocketWithVoter extends Socket {
 
             console.log(`[Socket CORS] Origin: ${requestOrigin} (Clean: ${cleanOrigin}), Allowed: ${cleanAllowed.join(', ')}`);
 
-            if (!requestOrigin || cleanAllowed.includes(cleanOrigin)) {
+            const isLocalNetwork = cleanOrigin && (
+                cleanOrigin.startsWith('http://192.168.') ||
+                cleanOrigin.startsWith('http://10.') ||
+                cleanOrigin.startsWith('http://172.') ||
+                cleanOrigin.startsWith('http://localhost')
+            );
+
+            if (!requestOrigin || cleanAllowed.includes(cleanOrigin) || isLocalNetwork) {
                 callback(null, true);
             } else {
                 console.warn(`[Socket CORS] REJECTED: ${requestOrigin}`);
