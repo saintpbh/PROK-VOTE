@@ -3,45 +3,45 @@
 @tailwind utilities;
 
 :root {
-  /* Deep Navy Professional Theme (Default Light Mode) */
-  --primary: 30 58 138; /* #1E3A8A Blue 900 - Deep Navy */
-  --secondary: 71 85 105; /* #475569 Slate 600 */
-  --accent: 14 165 233; /* #0EA5E9 Sky 500 */
-  --success: 22 163 74; /* #16A34A Green 600 */
-  --danger: 220 38 38; /* #DC2626 Red 600 */
+ 
+  --primary: 30 58 138;
+  --secondary: 71 85 105;
+  --accent: 14 165 233;
+  --success: 22 163 74;
+  --danger: 220 38 38;
   
-  --background: 248 250 252; /* #F8FAFC Slate 50 - Clean off-white */
-  --foreground: 15 23 42; /* #0F172A Slate 900 - Dark readable text */
+  --background: 248 250 252;
+  --foreground: 15 23 42;
   
-  --card: 255 255 255; /* #FFFFFF Pure White */
-  --card-foreground: 15 23 42; /* #0F172A */
+  --card: 255 255 255;
+  --card-foreground: 15 23 42;
   
-  --muted: 241 245 249; /* #F1F5F9 Slate 100 */
-  --muted-foreground: 100 116 139; /* #64748B Slate 500 */
+  --muted: 241 245 249;
+  --muted-foreground: 100 116 139;
   
-  --border: 226 232 240; /* #E2E8F0 Slate 200 */
-  --surface: 255 255 255; /* #FFFFFF */
+  --border: 226 232 240;
+  --surface: 255 255 255;
 }
 
 /* Stadium / Dark Mode (Deep Navy background for maximum authority) */
 [data-theme="dark"] {
-  --primary: 59 130 246; /* #3B82F6 Blue 500 - Lighter for dark mode */
-  --secondary: 148 163 184; /* #94A3B8 Slate 400 */
-  --accent: 56 189 248; /* #38BDF8 Sky 400 */
-  --success: 34 197 94; /* #22C55E Green 500 */
-  --danger: 239 68 68; /* #EF4444 Red 500 */
+  --primary: 59 130 246;
+  --secondary: 148 163 184;
+  --accent: 56 189 248;
+  --success: 34 197 94;
+  --danger: 239 68 68;
   
-  --background: 15 23 42; /* #0F172A Slate 900 (Deep Navy Base) */
-  --foreground: 248 250 252; /* #F8FAFC Slate 50 */
+  --background: 15 23 42;
+  --foreground: 248 250 252;
   
-  --card: 30 41 59; /* #1E293B Slate 800 */
-  --card-foreground: 248 250 252; /* #F8FAFC */
+  --card: 30 41 59;
+  --card-foreground: 248 250 252;
   
-  --muted: 30 41 59; /* #1E293B */
-  --muted-foreground: 148 163 184; /* #94A3B8 */
+  --muted: 30 41 59;
+  --muted-foreground: 148 163 184;
   
-  --border: 51 65 85; /* #334155 Slate 700 */
-  --surface: 30 41 59; /* #1E293B */
+  --border: 51 65 85;
+  --surface: 30 41 59;
 }
 
 @layer base {
@@ -56,34 +56,34 @@
 
 @layer components {
 
-  /* Glassmorphism effect */
+ 
   .glass {
     @apply bg-white/10 backdrop-blur-lg border border-white/20;
   }
 
-  /* Button base styles */
+ 
   .btn {
     @apply px-6 py-3 rounded-lg font-semibold transition-all duration-150;
     @apply hover:scale-105 active:scale-95;
   }
 
   .btn-primary {
-    @apply bg-primary/100 text-white hover:bg-primary/90;
+    @apply bg-primary text-white hover:bg-primary/90;
   }
 
   .btn-secondary {
-    @apply bg-secondary/100 text-white hover:bg-secondary/90;
+    @apply bg-secondary text-white hover:bg-secondary/90;
   }
 
   .btn-success {
-    @apply bg-success/100 text-white hover:bg-success/90;
+    @apply bg-success text-white hover:bg-success/90;
   }
 
   .btn-danger {
     @apply bg-danger text-white hover:opacity-90;
   }
 
-  /* Card styles */
+ 
   .card {
     background-color: rgba(var(--surface), 0.5);
     color: rgb(var(--card-foreground));
@@ -94,7 +94,7 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
-  /* Input styles */
+ 
   .input {
     @apply w-full px-4 py-3 rounded-lg bg-muted/50 border border-border;
     @apply focus:outline-none focus:ring-2 focus:ring-primary/50;
@@ -104,7 +104,7 @@
 
 @layer utilities {
 
-  /* Count-up animation for numbers */
+ 
   @keyframes countup {
     from {
       opacity: 0;
@@ -121,7 +121,7 @@
     animation: countup 0.5s ease-out;
   }
 
-  /* Pulse animation for active state */
+ 
   @keyframes pulse-slow {
 
     0%,
@@ -142,7 +142,7 @@
     filter: drop-shadow(0 0 10px rgb(var(--primary) / 0.5));
   }
 
-  /* Slide in from bottom */
+ 
   @keyframes slide-in-bottom {
     from {
       transform: translateY(100%);
@@ -159,7 +159,7 @@
     animation: slide-in-bottom 0.3s ease-out;
   }
 
-  /* Gradient X Movement */
+ 
   @keyframes gradient-x {
     0% {
       background-position: 0% 50%;
@@ -179,7 +179,7 @@
     animation: gradient-x 3s ease infinite;
   }
 
-  /* Slow Spin Reverse */
+ 
   @keyframes spin-reverse {
     from {
       transform: rotate(360deg);
@@ -194,7 +194,7 @@
     animation: spin-reverse 30s linear infinite;
   }
 
-  /* Slight Bounce */
+ 
   @keyframes bounce-slight {
 
     0%,

@@ -14,7 +14,7 @@ function StadiumContent() {
     const sessionId = searchParams.get('session');
 
     // Theme state
-    const [theme, setTheme] = useState<Theme>((searchParams.get('theme') as Theme) || 'classic');
+    const [theme, setTheme] = useState<Theme>((searchParams.get('theme') as Theme) || 'dark');
 
     // Data state
     const [stats, setStats] = useState<any>(null);
