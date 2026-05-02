@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PROK Vote - 시연용 포털</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .pulse-green {
+            box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+            animation: pulse-green 2s infinite;
+        }
+        @keyframes pulse-green {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+        .pulse-red {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            animation: pulse-red 2s infinite;
+        }
+        @keyframes pulse-red {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 min-h-screen flex items-center justify-center p-4 font-sans text-gray-100">
+    <div class="bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-md w-full text-center border border-gray-700">
+        
+        <!-- Logo Icon Placeholder -->
+        <div class="w-16 h-16 bg-blue-600 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-lg">
+            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+        </div>
+
+        <h1 class="text-3xl font-bold text-white mb-2 tracking-tight">PROK Vote</h1>
+        <p class="text-gray-400 mb-8">기장 총회 전자투표 시스템 시연 포털</p>
+
+        <div class="mb-8 p-5 bg-gray-900/50 rounded-xl border border-gray-700 shadow-inner">
+            <label class="block text-sm font-medium text-gray-400 mb-2 text-left">호스트 머신(발표자)의 IP 주소</label>
+            <div class="flex gap-2">
+                <input type="text" id="ipAddress" value="192.168.1.211" class="flex-1 bg-gray-800 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-3 transition-colors" placeholder="예: 192.168.1.211">
+                <button onclick="checkConnection()" class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-800 font-medium rounded-lg text-sm px-5 py-3 transition-colors shadow-md">확인</button>
+            </div>
+            <p class="text-xs text-gray-500 mt-3 text-left">발표자의 Mac과 동일한 Wi-Fi에 연결되어 있어야 합니다.</p>
+        </div>
+
+        <div class="flex items-center justify-center gap-3 mb-8 bg-gray-800 py-3 rounded-lg border border-gray-700">
+            <div id="statusLight" class="w-4 h-4 rounded-full bg-yellow-500 animate-pulse"></div>
+            <span id="statusText" class="text-gray-300 font-semibold tracking-wide">연결 확인 중...</span>
+        </div>
+
+        <div class="space-y-4">
+            <a id="adminLink" href="#" onclick="preventClick(event)" class="block w-full text-white bg-gray-600 font-medium rounded-xl text-lg px-5 py-4 transition-all opacity-50 cursor-not-allowed">
+                투표 시스템 바로가기
+            </a>
+        </div>
+    </div>
+
+    <!-- Hidden image used to ping the local server without triggering strict CORS blocked fetch -->
+    <!-- We test port 3000 since it serves the frontend assets like favicon.ico -->
+    <img id="pingImg" style="display:none;" onerror="handlePingError()" onload="handlePingSuccess()">
+
+    <script>
+        let isConnected = false;
+
+        function checkConnection() {
+            const ip = document.getElementById('ipAddress').value.trim();
+            const statusLight = document.getElementById('statusLight');
+            const statusText = document.getElementById('statusText');
+            const pingImg = document.getElementById('pingImg');
+            
+            // Reset status
+            isConnected = false;
+            statusLight.className = 'w-4 h-4 rounded-full bg-yellow-500 animate-pulse';
+            statusText.textContent = '연결 확인 중...';
+            statusText.className = 'text-yellow-500 font-semibold tracking-wide';
+            
+            updateButtons();
+
+            if (!ip) {
+                handlePingError();
+                return;
+            }
+
+            // Using an image load to ping the server. 
+            // This is a known trick to bypass basic cross-origin fetch restrictions.
+            pingImg.src = `http://${ip}:3000/favicon.ico?t=${new Date().getTime()}`;
+        }
+
+        function handlePingSuccess() {
+            isConnected = true;
+            const statusLight = document.getElementById('statusLight');
+            const statusText = document.getElementById('statusText');
+            
+            statusLight.className = 'w-4 h-4 rounded-full bg-green-500 pulse-green';
+            statusText.textContent = '로컬 서버 연결됨';
+            statusText.className = 'text-green-500 font-semibold tracking-wide';
+            
+            updateButtons();
+        }
+
+        function handlePingError() {
+            isConnected = false;
+            const statusLight = document.getElementById('statusLight');
+            const statusText = document.getElementById('statusText');
+            
+            statusLight.className = 'w-4 h-4 rounded-full bg-red-500 pulse-red';
+            statusText.textContent = '서버 접속 불가';
+            statusText.className = 'text-red-500 font-semibold tracking-wide';
+            
+            updateButtons();
+        }
+
+        function preventClick(e) {
+            e.preventDefault();
+            alert('먼저 상단의 [확인] 버튼을 눌러 서버 연결 상태가 "녹색(연결됨)"이 되어야 합니다. 동일한 Wi-Fi 네트워크에 있는지 확인해주세요.');
+        }
+
+        function updateButtons() {
+            const adminLink = document.getElementById('adminLink');
+            
+            if (isConnected) {
+                adminLink.className = 'block w-full text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-800 font-bold rounded-xl text-lg px-5 py-4 transition-all shadow-lg transform hover:scale-105';
+                adminLink.removeAttribute('onclick');
+                
+                const ip = document.getElementById('ipAddress').value.trim();
+                adminLink.href = `http://${ip}:3000`;
+            } else {
+                adminLink.className = 'block w-full text-white bg-gray-600 font-medium rounded-xl text-lg px-5 py-4 transition-all opacity-50 cursor-not-allowed';
+                adminLink.href = '#';
+                adminLink.onclick = preventClick;
+            }
+        }
+
+        // Initial check on load
+        window.onload = checkConnection;
+    </script>
+</body>
+</html>
