@@ -125,6 +125,7 @@
             
             if (isConnected) {
                 adminLink.className = 'block w-full text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-800 font-bold rounded-xl text-lg px-5 py-4 transition-all shadow-lg transform hover:scale-105';
+                adminLink.onclick = null; // Fix: clear the property instead of attribute
                 adminLink.removeAttribute('onclick');
                 
                 const ip = document.getElementById('ipAddress').value.trim();
