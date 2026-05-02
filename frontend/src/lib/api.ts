@@ -1,9 +1,14 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 
-let API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3011';
+let API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
-// Ensure absolute URL
-if (API_BASE_URL && !API_BASE_URL.startsWith('http') && typeof window !== 'undefined') {
+if (!API_BASE_URL) {
+    if (typeof window !== 'undefined') {
+        API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:3001`;
+    } else {
+        API_BASE_URL = 'http://localhost:3001';
+    }
+} else if (!API_BASE_URL.startsWith('http') && typeof window !== 'undefined') {
     API_BASE_URL = `https://${API_BASE_URL}`;
 }
 
@@ -294,6 +299,10 @@ class ApiClient {
 
     async setUserStatus(id: string, isActive: boolean): Promise<any> {
         return this.client.put(`/users/managers/${id}/status`, { isActive });
+    }
+
+    async deleteManager(id: string): Promise<any> {
+        return this.client.delete(`/users/managers/${id}`);
     }
 
     // Audit Logs (Super Admin)

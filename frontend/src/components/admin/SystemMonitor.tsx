@@ -145,7 +145,7 @@ export default function SystemMonitor() {
             <div className={`p-4 rounded-xl border flex gap-4 items-start ${memoryUsage > 80 ? 'bg-danger/10 border-danger/30' : 'bg-primary/5 border-primary/20'
                 }`}>
                 <div className="text-2xl pt-1">
-                    {memoryUsage > 80 ? '⚠️' : '✅'}
+                    {memoryUsage > 80 ? '!' : 'OK'}
                 </div>
                 <div>
                     <h4 className="font-bold mb-1">

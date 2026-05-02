@@ -159,7 +159,7 @@ export class SessionController {
         @Body() dto: UpdateAgendaStageDto,
         @Req() req: any
     ) {
-        const agenda = await this.sessionService.updateAgendaStage(id, dto.stage, req);
+        const agenda = await this.sessionService.updateAgendaStage(id, dto.stage, req, req.user);
         return {
             success: true,
             agenda,
@@ -173,8 +173,8 @@ export class SessionController {
     @Delete('agendas/:id')
     @UseGuards(AdminGuard)
     @HttpCode(HttpStatus.NO_CONTENT)
-    async deleteAgenda(@Param('id') id: string) {
-        await this.sessionService.deleteAgenda(id);
+    async deleteAgenda(@Param('id') id: string, @Req() req: any) {
+        await this.sessionService.deleteAgenda(id, req.user);
         return;
     }
 
@@ -193,9 +193,9 @@ export class SessionController {
             }
         })
     }))
-    async uploadLogo(@Param('id') id: string, @UploadedFile() file: any) {
+    async uploadLogo(@Param('id') id: string, @UploadedFile() file: any, @Req() req: any) {
         const logoUrl = `/uploads/${file.filename}`;
-        await this.sessionService.updateSessionLogo(id, logoUrl);
+        await this.sessionService.updateSessionLogo(id, logoUrl, req.user);
         return {
             success: true,
             logoUrl
@@ -210,7 +210,7 @@ export class SessionController {
     @UseGuards(AdminGuard)
     @HttpCode(HttpStatus.OK)
     async resetParticipants(@Param('id') id: string, @Req() req: any) {
-        await this.sessionService.resetParticipants(id, req);
+        await this.sessionService.resetParticipants(id, req, req.user);
         return {
             success: true,
         };
@@ -239,8 +239,9 @@ export class SessionController {
     async updateSettings(
         @Param('id') id: string,
         @Body() dto: UpdateSessionSettingsDto,
+        @Req() req: any,
     ) {
-        const session = await this.sessionService.updateSessionSettings(id, dto);
+        const session = await this.sessionService.updateSessionSettings(id, dto, req.user);
         return {
             success: true,
             session,
@@ -253,8 +254,8 @@ export class SessionController {
      */
     @Get(':id/export')
     @UseGuards(AdminGuard)
-    async exportSession(@Param('id') id: string, @Res() res: Response) {
-        const csv = await this.sessionService.exportSessionData(id);
+    async exportSession(@Param('id') id: string, @Res() res: Response, @Req() req: any) {
+        const csv = await this.sessionService.exportSessionData(id, req.user);
         res.header('Content-Type', 'text/csv');
         res.header('Content-Disposition', `attachment; filename="session_${id}.csv"`);
         res.send(csv);

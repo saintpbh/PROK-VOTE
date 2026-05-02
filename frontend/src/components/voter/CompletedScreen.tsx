@@ -22,7 +22,7 @@ export default function CompletedScreen() {
 
                     <div className="p-6 bg-success/10 rounded-lg border border-success/30 space-y-2">
                         <p className="text-sm text-success font-semibold">
-                            ✅ 투표가 정상적으로 기록되었습니다
+                            투표가 정상적으로 기록되었습니다
                         </p>
                         <p className="text-xs text-muted-foreground">
                             결과 발표 시 화면에 자동으로 표시됩니다
@@ -30,7 +30,7 @@ export default function CompletedScreen() {
                     </div>
 
                     <div className="text-sm text-muted-foreground space-y-2 pt-4">
-                        <p>💡 <strong>다음 단계:</strong></p>
+                        <p><strong>다음 단계:</strong></p>
                         <ul className="text-left space-y-1 ml-6">
                             <li>• 화면을 닫지 마세요</li>
                             <li>• 결과 발표를 기다려주세요</li>
@@ -38,18 +38,6 @@ export default function CompletedScreen() {
                         </ul>
                     </div>
 
-                    {/* Celebration particles animation (optional) */}
-                    <div className="flex items-center justify-center gap-3 pt-6">
-                        <span className="text-4xl animate-bounce" style={{ animationDelay: '0ms' }}>
-                            🎉
-                        </span>
-                        <span className="text-4xl animate-bounce" style={{ animationDelay: '100ms' }}>
-                            ✨
-                        </span>
-                        <span className="text-4xl animate-bounce" style={{ animationDelay: '200ms' }}>
-                            🎊
-                        </span>
-                    </div>
                 </div>
             </Card>
         </div>

@@ -248,7 +248,7 @@ export default function StageController({
                                 variant="secondary"
                                 fullWidth
                             >
-                                📋 상정
+                                상정
                             </Button>
 
                             <Button
@@ -257,7 +257,7 @@ export default function StageController({
                                 variant="success"
                                 fullWidth
                             >
-                                {(currentStage === 'ended' || currentStage === 'announced') ? '🔄 투표 재개' : '▶️ 투표 개시'}
+                                {(currentStage === 'ended' || currentStage === 'announced') ? '투표 재개' : '투표 개시'}
                             </Button>
 
                             <Button
@@ -266,7 +266,7 @@ export default function StageController({
                                 variant="danger"
                                 fullWidth
                             >
-                                ⏹️ 투표 종료
+                                투표 종료
                             </Button>
 
                             <Button
@@ -275,7 +275,7 @@ export default function StageController({
                                 variant="primary"
                                 fullWidth
                             >
-                                📊 결과 발표
+                                결과 발표
                             </Button>
                         </div>
 
@@ -313,7 +313,7 @@ export default function StageController({
                                         fullWidth
                                         className="bg-gradient-to-r from-primary to-secondary animate-pulse-slow active:scale-95"
                                     >
-                                        ⏭️ 다음 안건 (상정/이동)
+                                        다음 안건 (상정/이동)
                                     </Button>
                                 )}
                                 <Button
@@ -350,7 +350,7 @@ export default function StageController({
                                 disabled={loading}
                                 className="flex-1"
                             >
-                                🔄 리셋
+                                리셋
                             </Button>
 
                             <Button
@@ -369,7 +369,7 @@ export default function StageController({
                                 disabled={loading}
                                 className="flex-1"
                             >
-                                🖼️ 로고
+                                로고
                             </Button>
 
                             <div className="relative">

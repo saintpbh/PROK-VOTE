@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Put, UseGuards, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete, UseGuards, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { AdminGuard } from '../auth/admin.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -50,6 +50,15 @@ export class UsersController {
         return {
             success: true,
             user,
+        };
+    }
+
+    @Delete('managers/:id')
+    async deleteManager(@Param('id') id: string) {
+        const result = await this.usersService.deleteManager(id);
+        return {
+            success: true,
+            ...result,
         };
     }
 }

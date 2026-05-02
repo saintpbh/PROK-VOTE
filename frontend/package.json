@@ -3,7 +3,7 @@
     "version": "1.0.0",
     "description": "Real-time on-site electronic voting system - Frontend PWA",
     "scripts": {
-        "dev": "next dev",
+        "dev": "next dev -H 0.0.0.0",
         "build": "next build",
         "start": "next start",
         "lint": "next lint",

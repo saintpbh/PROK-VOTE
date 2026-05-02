@@ -1,297 +1,283 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import socketService from '@/lib/socket';
-import api from '@/lib/api';
+import SessionManager from '@/components/admin/SessionManager';
+import QRGenerator from '@/components/admin/QRGenerator';
+import AgendaList from '@/components/admin/AgendaList';
+import StageController from '@/components/admin/StageController';
 import { useSessionStore } from '@/store/sessionStore';
+import api from '@/lib/api';
+import socketService from '@/lib/socket';
 import toast from 'react-hot-toast';
+import { useRouter } from 'next/navigation';
 
 export default function ModeratorPage() {
-    const [sessionId, setSessionId] = useState('');
-    const [agendaId, setAgendaId] = useState('');
-    const [stats, setStats] = useState<any>(null);
-    const [showReVoteModal, setShowReVoteModal] = useState(false);
-    const { currentSession, currentAgenda } = useSessionStore();
+    const [activeTab, setActiveTab] = useState<'sessions' | 'qr' | 'agendas' | 'control'>('sessions');
+    const { currentSession, setCurrentSession, currentAgenda } = useSessionStore();
+    const [sessions, setSessions] = useState<any[]>([]);
+    const [user, setUser] = useState<any>(null);
+
+    const router = useRouter();
 
     useEffect(() => {
-        // Use current session/agenda from store if available
-        if (currentSession) {
-            setSessionId(currentSession.id);
-        }
-        if (currentAgenda) {
-            setAgendaId(currentAgenda.id);
-        }
-    }, [currentSession, currentAgenda]);
+        const checkAuth = async () => {
+            if (!api.isAdminAuthenticated()) {
+                router.replace('/moderator/login');
+                return;
+            }
 
-    useEffect(() => {
-        if (sessionId) {
-            // Connect to WebSocket
-            const socket = socketService.connect();
-            socketService.joinSession(sessionId, undefined, 'moderator');
-
-            // Listen for stats updates
-            socketService.on('stats:updated', (data) => {
-                if (agendaId && data.agendaId === agendaId) {
-                    setStats(data);
+            const storedUser = localStorage.getItem('admin_user');
+            if (storedUser) {
+                const parsedUser = JSON.parse(storedUser);
+                // Only allow VOTE_MANAGER role on this page
+                if (parsedUser.role !== 'VOTE_MANAGER') {
+                    toast.error('투표관리자 계정으로만 접근할 수 있습니다.');
+                    router.replace('/admin');
+                    return;
                 }
-            });
+                setUser(parsedUser);
+            }
 
-            return () => {
-                socketService.off('stats:updated');
-            };
-        }
-    }, [sessionId, agendaId]);
-
-    useEffect(() => {
-        // Hotkey listener for re-vote (R key)
-        const handleKeyPress = (e: KeyboardEvent) => {
-            if (e.key === 'r' || e.key === 'R') {
-                if (currentAgenda?.stage === 'voting') {
-                    setShowReVoteModal(true);
+            try {
+                const res = await api.getAllSessions();
+                setSessions(res.sessions || []);
+            } catch (error: any) {
+                console.error('Initial session fetch failed:', error);
+                if (error.status === 401) {
+                    toast.error('세션이 만료되었습니다. 다시 로그인해주세요.');
+                    api.removeToken();
+                    localStorage.removeItem('admin_user');
+                    router.replace('/moderator/login');
                 }
             }
         };
+        checkAuth();
+    }, [currentSession, router]);
 
-        window.addEventListener('keydown', handleKeyPress);
-        return () => window.removeEventListener('keydown', handleKeyPress);
-    }, [currentAgenda]);
+    const renderSessionSelector = (targetTab: string) => (
+        <div className="max-w-2xl mx-auto">
+            <h2 className="text-xl font-bold mb-4 text-center">세션을 선택해주세요</h2>
+            <div className="grid gap-4">
+                {sessions.map((session) => (
+                    <div
+                        key={session.id}
+                        onClick={() => setCurrentSession(session)}
+                        className="p-4 bg-card rounded-lg border border-border cursor-pointer hover:border-primary transition-all hover:shadow-md"
+                    >
+                        <div className="flex justify-between items-center">
+                            <span className="font-semibold">{session.name}</span>
+                            <span className="text-sm text-muted-foreground">{session.accessCode}</span>
+                        </div>
+                    </div>
+                ))}
+                {sessions.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                        생성된 세션이 없습니다. 세션 관리에서 먼저 세션을 생성해주세요.
+                        <div className="mt-4">
+                            <button
+                                onClick={() => setActiveTab('sessions')}
+                                className="btn btn-primary"
+                            >
+                                세션 관리로 이동
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 
-    useEffect(() => {
-        if (agendaId) {
-            fetchStats();
-        }
-    }, [agendaId]);
+    const tabs = [
+        { id: 'sessions', label: '세션 관리' },
+        { id: 'qr', label: 'QR 생성' },
+        { id: 'agendas', label: '안건 관리' },
+        { id: 'control', label: '투표 제어' },
+    ];
 
-    const fetchStats = async () => {
-        if (!agendaId) return;
-
-        try {
-            const response = await api.getVoteStatistics(agendaId);
-            setStats(response.stats);
-        } catch (error) {
-            console.error('Failed to fetch stats:', error);
-        }
-    };
-
-    const handlePublishResults = async () => {
-        if (!agendaId) {
-            toast.error('안건을 선택해주세요');
-            return;
-        }
-
-        try {
-            socketService.emit('result:publish', { agendaId });
-            await api.updateAgendaStage(agendaId, 'announced');
-            toast.success('결과가 발표되었습니다');
-        } catch (error: any) {
-            toast.error(error.message || '결과 발표에 실패했습니다');
-        }
-    };
-
-    const handleReVote = async () => {
-        if (!sessionId) {
-            toast.error('세션을 선택해주세요');
-            return;
-        }
-
-        try {
-            // Emit token revocation event
-            socketService.emit('tokens:revoke', { sessionId });
-            toast.success('재투표 세션이 시작되었습니다. 모든 참가자는 재인증이 필요합니다.');
-            setShowReVoteModal(false);
-        } catch (error: any) {
-            toast.error(error.message || '재투표 시작에 실패했습니다');
-        }
-    };
-
-    const getTurnoutPercentage = () => {
-        if (!stats || stats.totalParticipants === 0) return 0;
-        return (stats.totalVotes / stats.totalParticipants) * 100;
+    const handleLogout = () => {
+        api.removeToken();
+        localStorage.removeItem('admin_user');
+        router.push('/moderator/login');
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-secondary/20 to-primary/20 p-8">
-            <div className="max-w-6xl mx-auto space-y-6">
+        <div className="min-h-screen bg-gradient-to-br from-primary/10 to-secondary/10">
+            <div className="container mx-auto px-4 py-8">
                 {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-secondary to-primary bg-clip-text text-transparent">
-                        진행자 콘솔
-                    </h1>
-                    <p className="text-muted-foreground">
-                        실시간 투표 모니터링 및 제어
-                    </p>
+                <div className="mb-8 flex items-center justify-between">
+                    <div>
+                        <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-secondary to-primary bg-clip-text text-transparent">
+                            PROK Vote 투표관리자
+                        </h1>
+                        <p className="text-muted-foreground">
+                            투표 관리자: {user?.username}
+                        </p>
+                    </div>
+                    <div className="flex gap-4">
+                        <button
+                            onClick={handleLogout}
+                            className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-red-100"
+                        >
+                            로그아웃
+                        </button>
+                        {currentSession && (
+                            <button
+                                onClick={async () => {
+                                    if (window.confirm('전광판을 정말 리셋하시겠습니까?')) {
+                                        try {
+                                            socketService.connect();
+                                            socketService.emit('stadium:control', { sessionId: currentSession.id, action: 'reset' });
+                                            toast.success('전광판이 리셋되었습니다');
+                                        } catch (e) {
+                                            toast.error('전광판 리셋 실패');
+                                        }
+                                    }
+                                }}
+                                className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                            >
+                                전광판 리셋
+                            </button>
+                        )}
+                    </div>
                 </div>
 
-                {/* Current Session Info */}
-                {currentSession && currentAgenda && (
-                    <Card>
-                        <div className="space-y-3">
-                            <div>
-                                <p className="text-sm text-muted-foreground">현재 세션</p>
-                                <p className="text-xl font-bold">{currentSession.name}</p>
-                            </div>
-                            <div>
-                                <p className="text-sm text-muted-foreground">현재 안건</p>
-                                <p className="text-xl font-bold">{currentAgenda.title}</p>
-                            </div>
-                            <div className="flex gap-2">
-                                <span className="text-xs px-2 py-1 bg-primary/20 text-primary rounded">
-                                    {currentAgenda.stage}
-                                </span>
-                                {currentAgenda.isImportant && (
-                                    <span className="text-xs px-2 py-1 bg-danger/20 text-danger rounded">
-                                        ⚠️ 중요 투표
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                    </Card>
-                )}
+                {/* Tab Navigation */}
+                <div className="flex gap-2 mb-6 overflow-x-auto">
+                    {tabs.map((tab) => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id as any)}
+                            className={`px-6 py-3 rounded-lg font-semibold whitespace-nowrap transition-all ${activeTab === tab.id
+                                ? 'bg-primary text-white shadow-lg scale-105'
+                                : 'bg-card text-foreground hover:bg-muted/50'
+                                }`}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
 
-                {/* Live Voting Rate */}
-                {stats && (
-                    <Card title="📊 실시간 투표 현황">
-                        <div className="space-y-6">
-                            {/* Progress Bar */}
-                            <div>
-                                <div className="flex justify-between mb-2">
-                                    <span className="font-semibold">투표율</span>
-                                    <span className="text-2xl font-bold text-primary">
-                                        {getTurnoutPercentage().toFixed(1)}%
-                                    </span>
+                {/* Tab Content */}
+                <div className="animate-slide-in-bottom">
+                    {activeTab === 'sessions' && <SessionManager />}
+
+                    {activeTab === 'qr' && (
+                        <div>
+                            {currentSession ? (
+                                <div className="space-y-6">
+                                    <div className="flex justify-between items-center p-4 bg-primary/5 rounded-lg border border-primary/20">
+                                        <div>
+                                            <p className="text-sm text-muted-foreground mb-1">현재 선택된 세션</p>
+                                            <h3 className="text-xl font-bold text-primary">{currentSession.name}</h3>
+                                        </div>
+                                        <button
+                                            onClick={() => setCurrentSession(null)}
+                                            className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors"
+                                        >
+                                            다른 세션 선택
+                                        </button>
+                                    </div>
+                                    <QRGenerator sessionId={currentSession.id} />
                                 </div>
-                                <div className="w-full h-8 bg-muted rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-500"
-                                        style={{ width: `${getTurnoutPercentage()}%` }}
+                            ) : renderSessionSelector('qr')}
+                        </div>
+                    )}
+
+                    {activeTab === 'agendas' && (
+                        <div>
+                            {currentSession ? (
+                                <div className="space-y-6">
+                                    <div className="flex justify-between items-center p-4 bg-primary/5 rounded-lg border border-primary/20">
+                                        <div>
+                                            <p className="text-sm text-muted-foreground mb-1">현재 선택된 세션</p>
+                                            <h3 className="text-xl font-bold text-primary">{currentSession.name}</h3>
+                                        </div>
+                                        <button
+                                            onClick={() => setCurrentSession(null)}
+                                            className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors"
+                                        >
+                                            다른 세션 선택
+                                        </button>
+                                    </div>
+                                    <AgendaList
+                                        sessionId={currentSession.id}
+                                        onAgendaSelect={() => setActiveTab('control')}
                                     />
                                 </div>
-                                <div className="text-sm text-muted-foreground mt-2">
-                                    {stats.totalVotes}표 / {stats.totalParticipants}명 참가
-                                </div>
-                            </div>
-
-                            {/* Vote Breakdown */}
-                            <div className="grid grid-cols-3 gap-4">
-                                <div className="text-center p-4 bg-success/20 rounded-lg">
-                                    <div className="text-3xl font-bold text-success">
-                                        {stats.approveCount}
-                                    </div>
-                                    <div className="text-sm text-muted-foreground mt-1">찬성</div>
-                                </div>
-
-                                <div className="text-center p-4 bg-danger/20 rounded-lg">
-                                    <div className="text-3xl font-bold text-danger">
-                                        {stats.rejectCount}
-                                    </div>
-                                    <div className="text-sm text-muted-foreground mt-1">반대</div>
-                                </div>
-
-                                <div className="text-center p-4 bg-muted/50 rounded-lg">
-                                    <div className="text-3xl font-bold text-foreground">
-                                        {stats.abstainCount}
-                                    </div>
-                                    <div className="text-sm text-muted-foreground mt-1">기권</div>
-                                </div>
-                            </div>
+                            ) : renderSessionSelector('agendas')}
                         </div>
-                    </Card>
-                )}
+                    )}
 
-                {/* Controls */}
-                <Card title="🎮 제어 패널">
-                    <div className="space-y-4">
-                        <Button
-                            onClick={handlePublishResults}
-                            variant="primary"
-                            size="lg"
-                            fullWidth
-                            disabled={!currentAgenda || currentAgenda.stage !== 'ended'}
-                        >
-                            📢 결과 발표하기
-                        </Button>
+                    {activeTab === 'control' && (
+                        <div>
+                            {currentAgenda && currentSession ? (
+                                <div className="space-y-6">
+                                    <div className="flex justify-between items-center p-4 bg-primary/5 rounded-lg border border-primary/20">
+                                        <div>
+                                            <p className="text-sm text-muted-foreground mb-1">현재 선택된 세션</p>
+                                            <h3 className="text-xl font-bold text-primary">{currentSession.name}</h3>
+                                        </div>
+                                        <button
+                                            onClick={() => setCurrentSession(null)}
+                                            className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors"
+                                        >
+                                            다른 세션 선택
+                                        </button>
+                                    </div>
+                                    <div className="card">
+                                        <h2 className="text-xl font-bold mb-2">
+                                            {currentAgenda.title}
+                                        </h2>
+                                        {currentAgenda.description && (
+                                            <p className="text-muted-foreground">
+                                                {currentAgenda.description}
+                                            </p>
+                                        )}
+                                    </div>
 
-                        <div className="p-4 bg-muted/30 rounded-lg">
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="font-semibold">재투표 핫키</span>
-                                <kbd className="px-3 py-1 bg-background rounded text-sm font-mono">R</kbd>
-                            </div>
-                            <p className="text-sm text-muted-foreground mb-3">
-                                투표 진행 중 R 키를 누르면 재투표 세션을 시작할 수 있습니다
-                            </p>
-                            <Button
-                                onClick={() => setShowReVoteModal(true)}
-                                variant="danger"
-                                fullWidth
-                                disabled={!currentAgenda || currentAgenda.stage !== 'voting'}
-                            >
-                                🔄 재투표 시작
-                            </Button>
+                                    <StageController
+                                        agendaId={currentAgenda.id}
+                                        sessionId={currentSession.id}
+                                        currentStage={currentAgenda.stage}
+                                        onStageChange={(newStage) => {
+                                            useSessionStore.getState().updateAgendaStage(
+                                                currentAgenda.id,
+                                                newStage as any
+                                            );
+                                        }}
+                                        onClose={() => {
+                                            const { agendas, setCurrentAgenda } = useSessionStore.getState();
+                                            const currentIndex = agendas.findIndex(a => a.id === currentAgenda.id);
+
+                                            if (currentIndex !== -1 && currentIndex < agendas.length - 1) {
+                                                const nextAgenda = agendas[currentIndex + 1];
+                                                setCurrentAgenda(nextAgenda);
+                                            } else {
+                                                setActiveTab('agendas');
+                                            }
+                                        }}
+                                    />
+                                </div>
+                            ) : (
+                                <div className="card text-center py-12">
+                                    <div className="text-muted-foreground mb-4">
+                                        {!currentSession
+                                            ? renderSessionSelector('control')
+                                            : '제어할 안건을 선택해주세요'}
+                                    </div>
+                                    {currentSession && (
+                                        <button
+                                            onClick={() => setActiveTab('agendas')}
+                                            className="btn btn-primary"
+                                        >
+                                            안건 관리로 이동
+                                        </button>
+                                    )}
+                                </div>
+                            )}
                         </div>
-                    </div>
-                </Card>
-
-                {/* Re-Vote Modal */}
-                {showReVoteModal && (
-                    <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4">
-                        <Card className="max-w-md w-full">
-                            <div className="space-y-6">
-                                <div className="text-center">
-                                    <div className="text-6xl mb-4">⚠️</div>
-                                    <h2 className="text-2xl font-bold mb-2">재투표 확인</h2>
-                                    <p className="text-muted-foreground">
-                                        재투표를 시작하시겠습니까?
-                                    </p>
-                                </div>
-
-                                <div className="p-4 bg-danger/10 rounded-lg border border-danger/30">
-                                    <p className="text-sm text-danger">
-                                        <strong>주의:</strong> 모든 참가자의 토큰이 무효화되며 재인증이
-                                        필요합니다.
-                                    </p>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <Button
-                                        variant="ghost"
-                                        onClick={() => setShowReVoteModal(false)}
-                                        fullWidth
-                                    >
-                                        취소
-                                    </Button>
-                                    <Button
-                                        variant="danger"
-                                        onClick={handleReVote}
-                                        fullWidth
-                                    >
-                                        재투표 시작
-                                    </Button>
-                                </div>
-                            </div>
-                        </Card>
-                    </div>
-                )}
-
-                {/* Hotkey Guide */}
-                <div className="p-4 bg-muted/30 rounded-lg text-sm text-muted-foreground">
-                    <p className="font-semibold mb-2">💡 단축키</p>
-                    <ul className="space-y-1">
-                        <li>• <kbd className="px-2 py-0.5 bg-background rounded font-mono text-xs">R</kbd> - 재투표 시작 (투표 중일 때만)</li>
-                    </ul>
+                    )}
                 </div>
-
-                {!currentSession && (
-                    <div className="text-center p-8 card">
-                        <p className="text-muted-foreground mb-4">
-                            먼저 관리자 페이지에서 세션과 안건을 선택하세요
-                        </p>
-                        <Button onClick={() => (window.location.href = '/admin')}>
-                            관리자 페이지로 이동
-                        </Button>
-                    </div>
-                )}
             </div>
         </div>
     );

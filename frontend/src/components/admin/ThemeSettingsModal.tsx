@@ -19,14 +19,14 @@ interface ThemeSettingsModalProps {
 }
 
 const STADIUM_THEMES = [
-    { id: 'classic', name: '🟣 클래식 (기본)', desc: '보라색 기반의 깔끔한 기본 테마', color: '#8B5CF6' },
-    { id: 'serious', name: '🌑 진중함 (Serious)', desc: '무게감 있는 네이비와 슬레이트 톤', color: '#1E3A8A' },
-    { id: 'trust', name: '🔵 신뢰도 (Trust)', desc: '전문적인 블루와 신뢰감을 주는 색상', color: '#2563EB' },
-    { id: 'fancy', name: '✨ 팬시함 (Fancy)', desc: '화려한 그라데이션과 시선을 끄는 테마', color: '#C026D3' },
-    { id: 'modern', name: '🟢 세련됨 (Modern)', desc: '에메랄드와 블랙의 미니멀한 구성', color: '#10B981' },
-    { id: 'vibrant', name: '🔥 열정 (Vibrant)', desc: '에너지 넘치는 오렌지와 레드 톤', color: '#F97316' },
-    { id: 'elegant', name: '🏛️ 품격 (Elegant)', desc: '중후한 레드와 골드의 권위 있는 테마', color: '#991B1B' },
-    { id: 'eco', name: '🌿 안정감 (Eco)', desc: '숲을 닮은 그린과 차분한 조화', color: '#15803D' },
+    { id: 'classic', name: '클래식 (기본)', desc: '보라색 기반의 깔끔한 기본 테마', color: '#8B5CF6' },
+    { id: 'serious', name: '진중함 (Serious)', desc: '무게감 있는 네이비와 슬레이트 톤', color: '#1E3A8A' },
+    { id: 'trust', name: '신뢰도 (Trust)', desc: '전문적인 블루와 신뢰감을 주는 색상', color: '#2563EB' },
+    { id: 'fancy', name: '팬시함 (Fancy)', desc: '화려한 그라데이션과 시선을 끄는 테마', color: '#C026D3' },
+    { id: 'modern', name: '세련됨 (Modern)', desc: '에메랄드와 블랙의 미니멀한 구성', color: '#10B981' },
+    { id: 'vibrant', name: '열정 (Vibrant)', desc: '에너지 넘치는 오렌지와 레드 톤', color: '#F97316' },
+    { id: 'elegant', name: '품격 (Elegant)', desc: '중후한 레드와 골드의 권위 있는 테마', color: '#991B1B' },
+    { id: 'eco', name: '안정감 (Eco)', desc: '숲을 닮은 그린과 차분한 조화', color: '#15803D' },
 ];
 
 const VOTER_THEMES = [...STADIUM_THEMES];
@@ -74,7 +74,7 @@ export default function ThemeSettingsModal({
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="📽️ 전광판 및 투표 화면 설정" size="xl">
+        <Modal isOpen={isOpen} onClose={onClose} title="전광판 및 투표 화면 설정" size="xl">
             <div className="space-y-8">
                 {/* Entry Mode Settings */}
                 <section>
@@ -97,7 +97,7 @@ export default function ThemeSettingsModal({
                             onClick={() => setEntryMode('GLOBAL_LINK')}
                         >
                             <div className="flex items-center gap-2 mb-2">
-                                <span className="text-xl">🔗</span>
+                                <span className="text-xl"></span>
                                 <span className="font-bold">공용 링크 (대규모용)</span>
                             </div>
                             <p className="text-xs text-muted-foreground">하나의 링크로 수천 명 동시 접속이 가능합니다.</p>
@@ -106,7 +106,7 @@ export default function ThemeSettingsModal({
 
                     {entryMode === 'GLOBAL_LINK' && (
                         <div className="mt-4 p-4 bg-muted/30 rounded-lg border border-dashed border-primary/30">
-                            <p className="text-sm font-medium mb-3">📍 공용 접속 정보</p>
+                            <p className="text-sm font-medium mb-3">공용 접속 정보</p>
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between p-2 bg-background rounded border border-border">
                                     <span className="text-xs font-mono break-all pr-4">
@@ -151,7 +151,7 @@ export default function ThemeSettingsModal({
                 {/* Stadium Themes */}
                 <section>
                     <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                        🏟️ 전광판 테마 설정
+                        전광판 테마 설정
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                         {STADIUM_THEMES.map((t) => (
@@ -178,7 +178,7 @@ export default function ThemeSettingsModal({
                 {/* Voter Themes */}
                 <section>
                     <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                        📱 투표자 화면 테마 설정
+                        투표자 화면 테마 설정
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                         {VOTER_THEMES.map((t) => (

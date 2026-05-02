@@ -48,9 +48,21 @@ export default function UserManager() {
             setNewPassword('');
             fetchManagers();
         } catch (error: any) {
-            toast.error(error.message || '생성 실패');
+            const msg = error?.response?.status === 409 ? '이미 존재하는 아이디입니다.' : (error.message || '생성 실패');
+            toast.error(msg);
         } finally {
             setIsCreating(false);
+        }
+    };
+
+    const handleDelete = async (id: string, username: string) => {
+        if (!confirm(`정말로 "${username}" 매니저를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+        try {
+            await api.deleteManager(id);
+            toast.success(`"${username}" 매니저가 삭제되었습니다.`);
+            fetchManagers();
+        } catch (error: any) {
+            toast.error(error.message || '삭제 실패');
         }
     };
 
@@ -80,8 +92,8 @@ export default function UserManager() {
         <div className="space-y-8 animate-fade-in">
             {/* Create Manager Form */}
             <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
-                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                    👤 새 투표관리자 등록
+                <h2 className="text-xl font-bold mb-4">
+                    새 투표관리자 등록
                 </h2>
                 <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                     <input
@@ -173,12 +185,21 @@ export default function UserManager() {
                                     />
                                 </td>
                                 <td className="p-4 text-right">
-                                    <button
-                                        onClick={() => toggleStatus(manager.id, manager.isActive)}
-                                        className={`btn btn-sm ${manager.isActive ? 'btn-outline-danger' : 'btn-outline-success'}`}
-                                    >
-                                        {manager.isActive ? '중지' : '복구'}
-                                    </button>
+                                    <div className="flex items-center justify-end gap-2">
+                                        <button
+                                            onClick={() => toggleStatus(manager.id, manager.isActive)}
+                                            className={`btn btn-sm ${manager.isActive ? 'btn-outline-danger' : 'btn-outline-success'}`}
+                                        >
+                                            {manager.isActive ? '중지' : '복구'}
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(manager.id, manager.username)}
+                                            className="btn btn-sm"
+                                            style={{ background: '#dc2626', color: 'white', borderRadius: '6px', padding: '4px 10px', fontSize: '12px' }}
+                                        >
+                                            삭제
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}

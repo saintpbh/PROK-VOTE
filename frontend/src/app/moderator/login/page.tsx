@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 
-export default function AdminLoginPage() {
-    const [username, setUsername] = useState('admin');
+export default function ModeratorLoginPage() {
+    const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const router = useRouter();
@@ -16,8 +16,8 @@ export default function AdminLoginPage() {
             const storedUser = localStorage.getItem('admin_user');
             if (storedUser) {
                 const parsedUser = JSON.parse(storedUser);
-                if (parsedUser.role === 'SUPER_ADMIN') {
-                    router.replace('/admin');
+                if (parsedUser.role === 'VOTE_MANAGER') {
+                    router.replace('/moderator');
                 }
             }
         }
@@ -30,15 +30,16 @@ export default function AdminLoginPage() {
         try {
             const res = await api.adminLogin({ username, password });
             if (res.success && res.accessToken) {
-                if (res.user?.role !== 'SUPER_ADMIN') {
-                    toast.error('최고관리자 계정으로만 로그인할 수 있습니다.');
+                // Only allow VOTE_MANAGER role
+                if (res.user?.role !== 'VOTE_MANAGER') {
+                    toast.error('투표관리자 계정으로만 로그인할 수 있습니다.');
                     setLoading(false);
                     return;
                 }
                 api.setAdminToken(res.accessToken);
                 localStorage.setItem('admin_user', JSON.stringify(res.user));
                 toast.success('로그인 성공');
-                router.push('/admin');
+                router.push('/moderator');
             } else {
                 toast.error('로그인 실패: 인증 정보를 확인해주세요.');
             }
@@ -56,7 +57,7 @@ export default function AdminLoginPage() {
                 {/* Logo / Title */}
                 <div className="text-center mb-8">
                     <h1 className="text-3xl font-bold text-white mb-2">PROK Vote</h1>
-                    <p className="text-slate-400 text-sm">최고관리자 로그인</p>
+                    <p className="text-slate-400 text-sm">투표관리자 로그인</p>
                 </div>
 
                 {/* Login Card */}
@@ -70,8 +71,8 @@ export default function AdminLoginPage() {
                                 type="text"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                                placeholder="최고관리자 아이디"
+                                className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
+                                placeholder="투표관리자 아이디"
                                 required
                                 autoFocus
                             />
@@ -84,7 +85,7 @@ export default function AdminLoginPage() {
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                                className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
                                 placeholder="비밀번호"
                                 required
                             />
@@ -92,14 +93,16 @@ export default function AdminLoginPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all disabled:opacity-50 shadow-lg shadow-blue-500/25"
+                            className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-50 shadow-lg shadow-purple-500/25"
                         >
                             {loading ? '로그인 중...' : '로그인'}
                         </button>
                     </form>
 
-                    <div className="mt-6 flex flex-col items-center gap-2">
-                        <a href="/" className="text-sm text-slate-400 hover:text-white transition-colors">홈으로 돌아가기</a>
+                    <div className="mt-6 text-center">
+                        <p className="text-xs text-slate-500">
+                            계정이 없으신가요? 최고관리자에게 문의하세요.
+                        </p>
                     </div>
                 </div>
             </div>

@@ -162,10 +162,19 @@ export class SessionService {
         agendaId: string,
         stage: 'pending' | 'submitted' | 'voting' | 'ended' | 'announced',
         req?: Request,
+        user?: any,
     ): Promise<Agenda> {
         const agenda = await this.agendaRepository.findOne({
             where: { id: agendaId },
         });
+
+        // Ownership check: verify the agenda's session belongs to this user
+        if (user && user.role === UserRole.VOTE_MANAGER) {
+            const session = await this.sessionRepository.findOne({ where: { id: agenda.sessionId } });
+            if (session.ownerId !== user.userId) {
+                throw new ForbiddenException('Access denied to this agenda');
+            }
+        }
 
         const oldStage = agenda.stage;
         agenda.stage = stage;
@@ -248,10 +257,23 @@ export class SessionService {
     /**
      * Delete an agenda
      */
-    async deleteAgenda(agendaId: string): Promise<void> {
+    async deleteAgenda(agendaId: string, user?: any): Promise<void> {
+        // Ownership check
+        if (user && user.role === UserRole.VOTE_MANAGER) {
+            const agenda = await this.agendaRepository.findOne({ where: { id: agendaId } });
+            if (agenda) {
+                const session = await this.sessionRepository.findOne({ where: { id: agenda.sessionId } });
+                if (session.ownerId !== user.userId) {
+                    throw new ForbiddenException('Access denied to this agenda');
+                }
+            }
+        }
         await this.agendaRepository.delete(agendaId);
     }
-    async updateSessionLogo(sessionId: string, logoUrl: string): Promise<Session> {
+    async updateSessionLogo(sessionId: string, logoUrl: string, user?: any): Promise<Session> {
+        // Ownership check
+        await this.getSessionWithAgendas(sessionId, user);
+
         const session = await this.sessionRepository.findOne({
             where: { id: sessionId },
         });
@@ -268,7 +290,11 @@ export class SessionService {
             allowAnonymous?: boolean;
             strictDeviceCheck?: boolean;
         },
+        user?: any,
     ): Promise<Session> {
+        // Ownership check
+        await this.getSessionWithAgendas(sessionId, user);
+
         const session = await this.sessionRepository.findOne({
             where: { id: sessionId },
         });
@@ -287,7 +313,10 @@ export class SessionService {
         return updatedSession;
     }
 
-    async resetParticipants(sessionId: string, req: Request): Promise<void> {
+    async resetParticipants(sessionId: string, req: Request, user?: any): Promise<void> {
+        // Ownership check
+        await this.getSessionWithAgendas(sessionId, user);
+
         await this.auditService.log({
             eventType: 'ADMIN_RESET_PARTICIPANTS',
             sessionId,
@@ -304,7 +333,10 @@ export class SessionService {
         });
     }
 
-    async exportSessionData(sessionId: string): Promise<string> {
+    async exportSessionData(sessionId: string, user?: any): Promise<string> {
+        // Ownership check
+        await this.getSessionWithAgendas(sessionId, user);
+
         const agendas = await this.agendaRepository.find({
             where: { sessionId },
             relations: ['votes'],

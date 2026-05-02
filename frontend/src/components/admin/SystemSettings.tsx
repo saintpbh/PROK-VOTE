@@ -50,12 +50,12 @@ export default function SystemSettings() {
         <div className="max-w-4xl mx-auto space-y-6">
             <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
                 <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                    ⚙️ 시스템 전역 설정
+                    시스템 전역 설정
                 </h2>
 
                 <div className="mb-10">
                     <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-                        📊 서버 실시간 모니터링
+                        서버 실시간 모니터링
                     </h3>
                     <SystemMonitor />
                 </div>
@@ -154,7 +154,7 @@ export default function SystemSettings() {
 
             <div className="alert alert-info bg-indigo-500/10 border-indigo-500/20 text-indigo-700 p-4 rounded-lg text-sm mt-8">
                 <div className="flex gap-3">
-                    <span className="text-xl">💡</span>
+                    <span className="text-xl font-bold">i</span>
                     <div className="space-y-1">
                         <p><b>성능 최적화 팁:</b> 1,000명 이상의 대규모 투표가 예정된 경우, <b>API 속도 제한</b>을 10,000 이상으로 상향하고 <b>메모리 사용율</b>을 모니터링하세요.</p>
                         <p className="text-xs opacity-70">* 물리적인 서버 사양(CPU/RAM) 변경은 Railway 대시보드에서 수행해야 하며, 이곳에서는 애플리케이션 레벨의 제한을 제어합니다.</p>

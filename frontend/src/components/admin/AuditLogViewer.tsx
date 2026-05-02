@@ -55,20 +55,20 @@ export default function AuditLogViewer() {
     return (
         <div className="card space-y-4">
             <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-primary">⚖️ 오딧 시스템 (Audit Logs)</h2>
+                <h2 className="text-2xl font-bold text-primary">감사 로그 (Audit Logs)</h2>
                 <div className="flex gap-2">
                     <button
                         onClick={fetchLogs}
                         className="btn btn-secondary text-sm"
                         disabled={loading}
                     >
-                        🔄 새로고침
+                        새로고침
                     </button>
                     <button
                         onClick={handleExport}
                         className="btn btn-primary text-sm"
                     >
-                        📥 CSV 내보내기
+                        CSV 내보내기
                     </button>
                 </div>
             </div>

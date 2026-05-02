@@ -1,9 +1,14 @@
 import { io, Socket } from 'socket.io-client';
 
-let SOCKET_URL = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001';
+let SOCKET_URL = process.env.NEXT_PUBLIC_WS_URL;
 
-// Ensure absolute URL
-if (SOCKET_URL && !SOCKET_URL.startsWith('http') && typeof window !== 'undefined') {
+if (!SOCKET_URL) {
+    if (typeof window !== 'undefined') {
+        SOCKET_URL = `${window.location.protocol}//${window.location.hostname}:3001`;
+    } else {
+        SOCKET_URL = 'http://localhost:3001';
+    }
+} else if (!SOCKET_URL.startsWith('http') && typeof window !== 'undefined') {
     SOCKET_URL = `https://${SOCKET_URL}`;
 }
 

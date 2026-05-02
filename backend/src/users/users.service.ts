@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, ConflictException } from '@nestjs/common';
+import { Injectable, OnModuleInit, ConflictException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -97,5 +97,22 @@ export class UsersService implements OnModuleInit {
     async setAccountStatus(id: string, isActive: boolean) {
         await this.usersRepository.update(id, { isActive });
         return await this.findById(id);
+    }
+
+    async deleteManager(id: string) {
+        const user = await this.findById(id);
+        if (!user) {
+            throw new NotFoundException('사용자를 찾을 수 없습니다.');
+        }
+        if (user.role === UserRole.SUPER_ADMIN) {
+            throw new ForbiddenException('슈퍼 관리자 계정은 삭제할 수 없습니다.');
+        }
+        // Detach sessions owned by this manager (preserve session data)
+        await this.usersRepository.manager.query(
+            'UPDATE sessions SET owner_id = NULL WHERE owner_id = $1',
+            [id],
+        );
+        await this.usersRepository.remove(user);
+        return { deleted: true, username: user.username };
     }
 }

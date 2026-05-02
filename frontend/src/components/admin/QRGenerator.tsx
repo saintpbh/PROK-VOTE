@@ -97,7 +97,7 @@ export default function QRGenerator({ sessionId }: QRGeneratorProps) {
                         <div className="flex items-center justify-between p-4 bg-success/10 rounded-lg border border-success/30">
                             <div>
                                 <p className="font-semibold text-success">
-                                    ✅ {generatedTokens.length}개의 QR 코드 생성 완료
+                                    {generatedTokens.length}개의 QR 코드 생성 완료
                                 </p>
                                 <p className="text-sm text-muted-foreground mt-1">
                                     A4 용지 {Math.ceil(generatedTokens.length / 20)}장에 출력됩니다
@@ -108,7 +108,7 @@ export default function QRGenerator({ sessionId }: QRGeneratorProps) {
                                 loading={loading}
                                 variant="success"
                             >
-                                📄 PDF 다운로드
+                                PDF 다운로드
                             </Button>
                         </div>
 
@@ -129,7 +129,7 @@ export default function QRGenerator({ sessionId }: QRGeneratorProps) {
                         )}
 
                         <div className="text-xs text-muted-foreground space-y-1">
-                            <p>💡 <strong>사용 방법:</strong></p>
+                            <p><strong>사용 방법:</strong></p>
                             <ol className="list-decimal list-inside space-y-0.5 ml-2">
                                 <li>PDF를 다운로드하여 A4 용지에 인쇄하세요</li>
                                 <li>점선을 따라 QR 코드를 잘라내세요</li>
@@ -142,7 +142,7 @@ export default function QRGenerator({ sessionId }: QRGeneratorProps) {
 
                 {!sessionId && (
                     <div className="text-center p-4 bg-danger/10 rounded-lg border border-danger/30">
-                        <p className="text-danger">⚠️ 먼저 세션을 선택해주세요</p>
+                        <p className="text-danger">먼저 세션을 선택해주세요</p>
                     </div>
                 )}
             </div>

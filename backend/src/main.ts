@@ -20,7 +20,15 @@ async function bootstrap() {
             const allowedOrigins = rawAllowedOrigins.map(o => o.replace(/\/$/, ''));
             const normalizedOrigin = requestOrigin ? requestOrigin.replace(/\/$/, '') : null;
 
-            if (!normalizedOrigin || allowedOrigins.includes(normalizedOrigin)) {
+            // Allow any local network IP for local development/testing
+            const isLocalNetwork = normalizedOrigin && (
+                normalizedOrigin.startsWith('http://192.168.') ||
+                normalizedOrigin.startsWith('http://10.') ||
+                normalizedOrigin.startsWith('http://172.') ||
+                normalizedOrigin.startsWith('http://localhost')
+            );
+
+            if (!normalizedOrigin || allowedOrigins.includes(normalizedOrigin) || isLocalNetwork) {
                 callback(null, true);
             } else {
                 console.log('[CORS] Blocked origin:', requestOrigin);

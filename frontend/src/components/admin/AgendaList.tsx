@@ -175,7 +175,7 @@ export default function AgendaList({ sessionId, onAgendaSelect }: { sessionId: s
                                     <div className="flex gap-2">
                                         {agenda.isImportant && (
                                             <span className="text-xs px-2 py-1 bg-danger/20 text-danger rounded">
-                                                ⚠️ 중요
+                                                중요
                                             </span>
                                         )}
                                         <span
@@ -255,7 +255,7 @@ export default function AgendaList({ sessionId, onAgendaSelect }: { sessionId: s
 
             {!sessionId && (
                 <div className="text-center p-4 bg-danger/10 rounded-lg border border-danger/30">
-                    <p className="text-danger">⚠️ 먼저 세션을 선택해주세요</p>
+                    <p className="text-danger">먼저 세션을 선택해주세요</p>
                 </div>
             )}
 
@@ -363,7 +363,7 @@ export default function AgendaList({ sessionId, onAgendaSelect }: { sessionId: s
                             className="w-5 h-5"
                         />
                         <label htmlFor="isImportant" className="text-sm cursor-pointer">
-                            ⚠️ 중요 투표 (재인증 필요)
+                            중요 투표 (재인증 필요)
                         </label>
                     </div>
 

@@ -95,7 +95,7 @@ export default function SmsManager({ sessionId, onUpdate }: SmsManagerProps) {
             <div className="flex items-center justify-between">
                 <div>
                     <h3 className="text-xl font-bold flex items-center gap-2">
-                        <span>📱</span> 문자 투표 관리
+                        <span></span> 문자 투표 관리
                     </h3>
                     <p className="text-sm text-muted-foreground mt-1">
                         참여자 명단을 등록하고 고유 투표 링크를 문자로 발송합니다.

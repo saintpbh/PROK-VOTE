@@ -217,7 +217,7 @@ export default function SessionManager() {
                                 }
                             }}
                         >
-                            🔗 대기방 열기
+                            대기방 열기
                         </span>
                         <div className="flex gap-2 ml-auto">
                             <Button
@@ -225,28 +225,28 @@ export default function SessionManager() {
                                 variant="outline"
                                 onClick={handleExport}
                             >
-                                📥 결과 내보내기
+                                결과 내보내기
                             </Button>
                             <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={() => setShowThemeModal(true)}
                             >
-                                🎨 테마 설정
+                                테마 설정
                             </Button>
                             <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={() => setShowSmsModal(true)}
                             >
-                                📱 문자 투표 관리
+                                문자 투표 관리
                             </Button>
                             <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={() => window.open(`/stadium?session=${currentSession.id}`, 'stadium_display', 'width=1920,height=1080,menubar=no,toolbar=no,location=no,status=no')}
                             >
-                                🏟️ 전광판 보기
+                                전광판 보기
                             </Button>
                         </div>
                     </div>
@@ -298,7 +298,7 @@ export default function SessionManager() {
                                     variant="danger"
                                     onClick={() => setShowResetParticipantsModal(true)}
                                 >
-                                    ⚠️ 참여자 전체 리셋
+                                    참여자 전체 리셋
                                 </Button>
                             </div>
                         </div>
@@ -342,7 +342,7 @@ export default function SessionManager() {
 
                                 {session.gpsEnabled && (
                                     <div className="text-xs text-muted-foreground">
-                                        📍 GPS 반경: {session.gpsRadius}m
+                                        GPS 반경: {session.gpsRadius}m
                                     </div>
                                 )}
                             </div>
@@ -356,7 +356,7 @@ export default function SessionManager() {
                                         window.open(`/stadium?session=${session.id}`, 'stadium_display', 'width=1920,height=1080,menubar=no,toolbar=no,location=no,status=no');
                                     }}
                                 >
-                                    🏟️
+                                    전광판
                                 </Button>
                                 <Button
                                     size="sm"
@@ -367,7 +367,7 @@ export default function SessionManager() {
                                     }}
                                     fullWidth
                                 >
-                                    🔄 코드 갱신
+                                    코드 갱신
                                 </Button>
                                 <Button
                                     size="sm"
@@ -377,7 +377,7 @@ export default function SessionManager() {
                                         setSessionToDelete(session);
                                     }}
                                 >
-                                    🗑️ 삭제
+                                    삭제
                                 </Button>
                             </div>
                         </div>
@@ -496,7 +496,7 @@ export default function SessionManager() {
             <Modal
                 isOpen={!!sessionToDelete}
                 onClose={() => setSessionToDelete(null)}
-                title="⚠️ 세션 삭제 확인"
+                title="세션 삭제 확인"
             >
                 <div className="space-y-4">
                     <div className="p-4 bg-danger/10 text-danger rounded-lg">
@@ -529,7 +529,7 @@ export default function SessionManager() {
             <Modal
                 isOpen={showResetParticipantsModal}
                 onClose={() => setShowResetParticipantsModal(false)}
-                title="⚠️ 참여자 전체 리셋"
+                title="참여자 전체 리셋"
             >
                 <div className="space-y-4">
                     <div className="p-4 bg-danger/10 text-danger rounded-lg">
