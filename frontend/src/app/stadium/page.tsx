@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import CountUpDisplay from '@/components/stadium/CountUpDisplay';
 import socketService from '@/lib/socket';
@@ -38,9 +38,12 @@ function StadiumContent() {
     // UI Control state
     const [forceShowLogo, setForceShowLogo] = useState(false);
     const [forcePending, setForcePending] = useState(false);
+    const isResetRef = useRef(false); // Tracks manual reset — survives re-renders and closures
 
     const refreshState = async () => {
         if (!sessionId) return;
+        // Skip restoring old results when manually reset
+        if (isResetRef.current) return;
 
         try {
             const sessionRes = await api.getSession(sessionId);
@@ -64,7 +67,8 @@ function StadiumContent() {
             if (!activeAgenda) {
                 activeAgenda = agendas.find((a: any) => a.stage === 'submitted');
             }
-            if (!activeAgenda) {
+            // Only restore announced/ended agendas if NOT in reset state
+            if (!activeAgenda && !isResetRef.current) {
                 const reversedAgendas = [...agendas].reverse();
                 activeAgenda = reversedAgendas.find((a: any) => a.stage === 'announced' || a.stage === 'ended');
             }
@@ -106,15 +110,21 @@ function StadiumContent() {
             });
 
             socketService.on('stats:updated', (data) => {
+                // Ignore stats updates during reset
+                if (isResetRef.current) return;
                 setStats((prev: any) => ({ ...prev, ...data }));
             });
 
             socketService.on('stats:response', (data) => {
+                // Ignore stats responses during reset
+                if (isResetRef.current) return;
                 setStats((prev: any) => ({ ...prev, ...data }));
                 setAgendaTitle(data.title);
             });
 
             socketService.on('result:published', ({ stats: publishedStats }) => {
+                // New result published — exit reset state
+                isResetRef.current = false;
                 setStats(publishedStats);
                 setAgendaTitle(publishedStats.title);
                 setCurrentStage('announced');
@@ -124,6 +134,8 @@ function StadiumContent() {
             socketService.on('stage:changed', ({ stage, agendaId }) => {
                 setCurrentStage(stage as Stage);
                 setForcePending(false);
+                // New vote started — exit reset state
+                isResetRef.current = false;
 
                 if (stage === 'submitted' || stage === 'voting') {
                     socketService.emit('stats:request', { agendaId });
@@ -148,6 +160,7 @@ function StadiumContent() {
                     setForceShowLogo(true);
                     setForcePending(false);
                 } else if (action === 'reset') {
+                    isResetRef.current = true; // Lock — prevent old data restoration
                     setForceShowLogo(false);
                     setForcePending(true);
                     setStats(null);
@@ -213,7 +226,7 @@ function StadiumContent() {
 
             {/* Main Content */}
             <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-8 w-full mx-auto"
-                style={{ minHeight: 'calc(100vh - 120px)', fontSize: `${fontScale}rem`, maxWidth: fontScale > 2 ? '100%' : '90rem' }}>
+                style={{ minHeight: 'calc(100vh - 120px)', zoom: fontScale > 1 ? fontScale : undefined, maxWidth: fontScale > 2 ? '100%' : '90rem' }}>
 
                 {/* ===== PENDING / LOGO ===== */}
                 {(isPending || forceShowLogo) && (

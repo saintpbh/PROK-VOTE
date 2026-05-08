@@ -183,6 +183,24 @@ export default function VotePage() {
 
         const onSettingsUpdate = (settings: any) => {
             console.log('[VotePage] session:settings:update received:', settings);
+
+            // If access code was refreshed, force all voters to re-authenticate
+            if (settings.accessCode) {
+                console.warn('[VotePage] Access code changed — forcing re-authentication');
+                toast('접속 코드가 변경되었습니다.\n새 코드로 다시 인증해주세요.', {
+                    icon: '🔒',
+                    duration: 5000,
+                });
+                // Clear auth state
+                useAuthStore.getState().logout();
+                localStorage.removeItem('auth-storage');
+                localStorage.removeItem('access_token');
+                // Reset to auth screen
+                setState('auth');
+                socketInitialized.current = false;
+                return;
+            }
+
             setTokenData((prev: any) => {
                 if (!prev || !prev.session) return prev;
                 return { ...prev, session: { ...prev.session, ...settings } };
