@@ -91,8 +91,13 @@ export default function AgendaList({ sessionId, onAgendaSelect }: { sessionId: s
 
         if (formData.type === 'MULTIPLE_CHOICE' || formData.type === 'MULTIPLE_CHOICE_MULTI') {
             const validOptions = formData.options.filter(opt => opt.trim());
+            const emptyCount = formData.options.length - validOptions.length;
             if (validOptions.length < 2) {
-                toast.error('다지선다 투표는 최소 2개의 옵션이 필요합니다');
+                if (emptyCount > 0) {
+                    toast.error(`옵션 내용을 입력해주세요 (${emptyCount}개 비어있음)`);
+                } else {
+                    toast.error('다지선다 투표는 최소 2개의 옵션이 필요합니다');
+                }
                 return;
             }
         }
@@ -407,7 +412,7 @@ export default function AgendaList({ sessionId, onAgendaSelect }: { sessionId: s
             >
                 <div className="flex flex-col max-h-[calc(90vh-6rem)]">
                     {/* Scrollable form area */}
-                    <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+                    <div className="flex-1 overflow-y-auto space-y-4 pr-1" data-scroll-area>
                         <Input
                             label="안건 제목"
                             placeholder="예: 제1호 안건 - 회의록 승인"
@@ -465,13 +470,14 @@ export default function AgendaList({ sessionId, onAgendaSelect }: { sessionId: s
                                 {formData.options.map((option, index) => (
                                     <div key={index} className="flex gap-2">
                                         <Input
-                                            placeholder={`옵션 ${index + 1}`}
+                                            placeholder={`옵션 ${index + 1}의 내용을 입력하세요`}
                                             value={option}
                                             onChange={(e) => {
                                                 const newOptions = [...formData.options];
                                                 newOptions[index] = e.target.value;
                                                 setFormData({ ...formData, options: newOptions });
                                             }}
+                                            className={!option.trim() ? 'border-danger/50' : ''}
                                         />
                                         <Button
                                             variant="danger"
@@ -489,11 +495,21 @@ export default function AgendaList({ sessionId, onAgendaSelect }: { sessionId: s
                                 <Button
                                     variant="secondary"
                                     size="sm"
-                                    onClick={() => setFormData({ ...formData, options: [...formData.options, ''] })}
+                                    onClick={() => {
+                                        setFormData({ ...formData, options: [...formData.options, ''] });
+                                        // Auto-scroll to bottom after adding
+                                        setTimeout(() => {
+                                            const scrollArea = document.querySelector('[data-scroll-area]');
+                                            if (scrollArea) scrollArea.scrollTop = scrollArea.scrollHeight;
+                                        }, 50);
+                                    }}
                                     fullWidth
                                 >
                                     + 옵션 추가
                                 </Button>
+                                {formData.options.some(o => !o.trim()) && (
+                                    <p className="text-xs text-danger">⚠ 비어있는 옵션에 내용을 입력해주세요</p>
+                                )}
                             </div>
                         )}
 
