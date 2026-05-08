@@ -228,14 +228,14 @@ export class AuthService {
     }
 
     private verifyAccessCode(session: Session, accessCode: string) {
-        // CHAR(4) column may include trailing spaces — trim both sides for safe comparison
-        if (accessCode.trim() !== session.accessCode.trim()) {
-            throw new UnauthorizedException('Invalid access code');
+        // Check expiration first — expired codes should prompt admin to refresh
+        if (session.codeExpiresAt && new Date() > session.codeExpiresAt) {
+            throw new UnauthorizedException('접속 코드가 만료되었습니다. 관리자에게 코드 갱신을 요청하세요.');
         }
 
-        // Check if code is expired
-        if (session.codeExpiresAt && new Date() > session.codeExpiresAt) {
-            throw new UnauthorizedException('Access code has expired');
+        // CHAR(4) column may include trailing spaces — trim both sides for safe comparison
+        if (accessCode.trim() !== session.accessCode.trim()) {
+            throw new UnauthorizedException('접속 코드가 일치하지 않습니다.');
         }
     }
 
