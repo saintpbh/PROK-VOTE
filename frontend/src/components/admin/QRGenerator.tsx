@@ -10,9 +10,10 @@ import toast from 'react-hot-toast';
 
 interface QRGeneratorProps {
     sessionId: string;
+    sessionName?: string;
 }
 
-export default function QRGenerator({ sessionId }: QRGeneratorProps) {
+export default function QRGenerator({ sessionId, sessionName }: QRGeneratorProps) {
     const [count, setCount] = useState<number>(20);
     const [loading, setLoading] = useState(false);
     const [generatedTokens, setGeneratedTokens] = useState<string[]>([]);
@@ -92,7 +93,7 @@ export default function QRGenerator({ sessionId }: QRGeneratorProps) {
                 }
             }
             
-            await qrPDFGenerator.generatePDF(generatedTokens, baseUrl);
+            await qrPDFGenerator.generatePDF(generatedTokens, baseUrl, sessionName);
             toast.success('PDF 다운로드가 시작되었습니다');
         } catch (error: any) {
             toast.error('PDF 생성에 실패했습니다');
@@ -136,7 +137,7 @@ export default function QRGenerator({ sessionId }: QRGeneratorProps) {
                                     {generatedTokens.length}개의 QR 코드 생성 완료
                                 </p>
                                 <p className="text-sm text-muted-foreground mt-1">
-                                    A4 용지 {Math.ceil(generatedTokens.length / 20)}장에 출력됩니다
+                                    A4 용지 {Math.ceil(generatedTokens.length / 12)}장에 출력됩니다 (3×4 배열)
                                 </p>
                             </div>
                             <Button

@@ -177,7 +177,7 @@ export default function ModeratorPage() {
                                             다른 세션 선택
                                         </button>
                                     </div>
-                                    <QRGenerator sessionId={currentSession.id} />
+                                    <QRGenerator sessionId={currentSession.id} sessionName={currentSession.name} />
                                 </div>
                             ) : renderSessionSelector('qr')}
                         </div>
