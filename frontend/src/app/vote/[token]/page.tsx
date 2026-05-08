@@ -15,6 +15,35 @@ import toast from 'react-hot-toast';
 
 type VoterState = 'loading' | 'auth' | 'waiting' | 'voting' | 'completed';
 
+const LOADING_MESSAGES = [
+    { text: '투표권을 확인하고 있습니다...', icon: '🔍' },
+    { text: '보안 환경을 점검하고 있습니다...', icon: '🔒' },
+    { text: '투표 시스템에 안전하게 연결 중입니다...', icon: '🛡️' },
+    { text: '참여 자격을 확인하고 있습니다...', icon: '✅' },
+    { text: '투표 환경을 준비하고 있습니다...', icon: '⚡' },
+];
+
+function LoadingMessages() {
+    const [msgIndex, setMsgIndex] = useState(0);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setMsgIndex((prev) => (prev + 1) % LOADING_MESSAGES.length);
+        }, 2200);
+        return () => clearInterval(interval);
+    }, []);
+
+    const msg = LOADING_MESSAGES[msgIndex];
+
+    return (
+        <div className="text-center animate-fade-in" key={msgIndex}>
+            <div className="text-2xl mb-2">{msg.icon}</div>
+            <p className="text-base font-medium text-white/80">{msg.text}</p>
+            <p className="text-xs text-muted-foreground mt-2">잠시만 기다려 주세요</p>
+        </div>
+    );
+}
+
 export default function VotePage() {
     const params = useParams();
     const tokenId = params.token as string;
@@ -256,7 +285,44 @@ export default function VotePage() {
                 </span>
             </div>
 
-            {state === 'loading' && <Loading fullScreen />}
+            {state === 'loading' && (
+                <div className="fixed inset-0 bg-background flex flex-col items-center justify-center z-50 p-8">
+                    <div className="fixed inset-0 bg-gradient-to-br from-primary/10 via-background to-secondary/10 -z-10" />
+                    
+                    {/* Logo / Title */}
+                    <div className="mb-8 text-center">
+                        <div className="text-4xl font-black tracking-tight text-white mb-2">PROK VOTE</div>
+                        <div className="text-sm text-muted-foreground">안전한 전자투표 시스템</div>
+                    </div>
+
+                    {/* Animated Shield Icon */}
+                    <div className="relative mb-10">
+                        <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full animate-pulse" />
+                        <svg className="relative w-20 h-20 text-primary animate-bounce" style={{ animationDuration: '2s' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="w-full max-w-xs mb-6">
+                        <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-primary to-accent rounded-full animate-progress" 
+                                style={{ animation: 'progress 3s ease-in-out infinite' }} />
+                        </div>
+                    </div>
+
+                    {/* Rotating Messages */}
+                    <LoadingMessages />
+
+                    <style jsx>{`
+                        @keyframes progress {
+                            0% { width: 0%; }
+                            50% { width: 80%; }
+                            100% { width: 100%; }
+                        }
+                    `}</style>
+                </div>
+            )}
 
             {state === 'auth' && (
                 <AuthFlow
