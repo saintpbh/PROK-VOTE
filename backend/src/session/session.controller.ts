@@ -21,10 +21,14 @@ import { extname } from 'path';
 import { SessionService } from './session.service';
 import { CreateSessionDto, CreateAgendaDto, UpdateAgendaStageDto, UpdateSessionSettingsDto } from './dto/session.dto';
 import { AdminGuard } from '../auth/admin.guard';
+import { VotingGateway } from '../voting/voting.gateway';
 
 @Controller('sessions')
 export class SessionController {
-    constructor(private sessionService: SessionService) { }
+    constructor(
+        private sessionService: SessionService,
+        private votingGateway: VotingGateway,
+    ) { }
 
     /**
      * Create a new session
@@ -113,6 +117,13 @@ export class SessionController {
     @HttpCode(HttpStatus.OK)
     async updateAccessCode(@Param('id') id: string, @Req() req: any) {
         const session = await this.sessionService.updateAccessCode(id, req.user);
+
+        // Broadcast to all connected voters → force re-authentication
+        this.votingGateway.broadcastSettingsUpdate(id, {
+            accessCode: session.accessCode,
+            forceReAuth: true,
+        });
+
         return {
             success: true,
             accessCode: session.accessCode,
