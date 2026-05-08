@@ -92,6 +92,16 @@ export default function VotePage() {
                 return;
             }
 
+            const tokenSessionId = response.token.sessionId || response.token.session?.id;
+
+            // Session mismatch: voter has auth from a different session
+            if (isAuthenticated && voterId && sessionId && tokenSessionId && sessionId !== tokenSessionId) {
+                console.log('[VotePage] Session mismatch: stored=', sessionId, 'token=', tokenSessionId, '→ forcing re-auth');
+                useAuthStore.getState().logout();
+                setState('auth');
+                return;
+            }
+
             if (isAuthenticated && voterId) {
                 checkVoteStatus();
             } else {
