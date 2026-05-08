@@ -51,10 +51,33 @@ export default function VotePage() {
     const [state, setState] = useState<VoterState>('loading');
     const [tokenData, setTokenData] = useState<any>(null);
     const [isSocketConnected, setIsSocketConnected] = useState(false);
+    const [isTabBlocked, setIsTabBlocked] = useState(false);
     const { isAuthenticated, voterId, sessionId } = useAuthStore();
     const { currentAgenda, setCurrentAgenda } = useSessionStore();
     const [theme, setTheme] = useState<string>('classic');
     const socketInitialized = useRef(false);
+
+    // Multi-tab prevention: block duplicate tabs for the same QR token
+    useEffect(() => {
+        if (!tokenId) return;
+        const channel = new BroadcastChannel(`prok-vote-${tokenId}`);
+        // Announce this tab is active
+        channel.postMessage({ type: 'TAB_CHECK' });
+
+        channel.onmessage = (e) => {
+            if (e.data.type === 'TAB_CHECK') {
+                // Another tab is checking — tell it we exist
+                channel.postMessage({ type: 'TAB_EXISTS' });
+            }
+            if (e.data.type === 'TAB_EXISTS') {
+                // This tab is the duplicate — block it
+                setIsTabBlocked(true);
+                toast.error('다른 탭에서 이미 투표 화면이 열려 있습니다.', { duration: 10000 });
+            }
+        };
+
+        return () => channel.close();
+    }, [tokenId]);
 
     const checkVoteStatus = useCallback(async () => {
         if (!voterId || !sessionId) {
@@ -284,6 +307,18 @@ export default function VotePage() {
                     {isSocketConnected ? 'Live' : 'Offline'}
                 </span>
             </div>
+
+            {/* Blocked Tab Screen */}
+            {isTabBlocked && (
+                <div className="fixed inset-0 bg-background flex flex-col items-center justify-center z-[100] p-8">
+                    <div className="text-6xl mb-6">🚫</div>
+                    <h2 className="text-xl font-bold text-white mb-3">중복 탭 감지</h2>
+                    <p className="text-muted-foreground text-center text-sm leading-relaxed">
+                        다른 탭에서 이미 투표 화면이 열려 있습니다.<br />
+                        이 탭을 닫아주세요.
+                    </p>
+                </div>
+            )}
 
             {state === 'loading' && (
                 <div className="fixed inset-0 bg-background flex flex-col items-center justify-center z-50 p-8">

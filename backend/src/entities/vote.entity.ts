@@ -5,6 +5,7 @@ import {
     CreateDateColumn,
     ManyToOne,
     JoinColumn,
+    Unique,
 } from 'typeorm';
 import { Voter } from './voter.entity';
 import { Agenda } from './agenda.entity';
@@ -12,6 +13,7 @@ import { Agenda } from './agenda.entity';
 export type VoteChoice = '찬성' | '반대' | '기권';
 
 @Entity('votes')
+@Unique(['voterId', 'agendaId'])
 export class Vote {
     @PrimaryGeneratedColumn('uuid')
     id: string;

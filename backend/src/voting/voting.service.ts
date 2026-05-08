@@ -66,14 +66,23 @@ export class VotingService {
             throw new BadRequestException('You have already voted on this agenda');
         }
 
-        // Create and save vote
+        // Create and save vote (unique constraint prevents race condition duplicates)
         const vote = this.voteRepository.create({
             voterId,
             agendaId: dto.agendaId,
             choice: dto.choice,
         });
 
-        const savedVote = await this.voteRepository.save(vote);
+        let savedVote: Vote;
+        try {
+            savedVote = await this.voteRepository.save(vote);
+        } catch (error: any) {
+            // PostgreSQL unique violation — race condition caught at DB level
+            if (error.code === '23505') {
+                throw new BadRequestException('이미 투표하셨습니다.');
+            }
+            throw error;
+        }
 
         await this.auditService.log({
             eventType: 'VOTER_VOTE_CAST',

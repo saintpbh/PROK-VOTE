@@ -90,10 +90,9 @@ export class AuthService {
             });
             await this.voterRepository.save(voter);
         } else {
-            // Update fingerprint if it changed or was missing
-            if (voter.deviceFingerprint !== dto.deviceFingerprint) {
-                voter.deviceFingerprint = dto.deviceFingerprint;
-                await this.voterRepository.save(voter);
+            // Device lock: reject access from different device
+            if (voter.deviceFingerprint && voter.deviceFingerprint !== dto.deviceFingerprint) {
+                throw new UnauthorizedException('이미 사용된 QR입니다. 진행팀에 문의하세요.');
             }
         }
 
