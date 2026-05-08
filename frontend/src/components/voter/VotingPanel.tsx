@@ -14,10 +14,13 @@ interface VotingPanelProps {
 
 export default function VotingPanel({ agenda, onVoteComplete }: VotingPanelProps) {
     const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
+    const [selectedMulti, setSelectedMulti] = useState<string[]>([]);
     const [inputText, setInputText] = useState('');
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [loading, setLoading] = useState(false);
     const { voterId } = useAuthStore();
+
+    const isMultiChoice = agenda.type === 'MULTIPLE_CHOICE_MULTI';
 
     const handleChoiceClick = (choice: string) => {
         setSelectedChoice(choice);
@@ -27,6 +30,26 @@ export default function VotingPanel({ agenda, onVoteComplete }: VotingPanelProps
         if (navigator.vibrate) {
             navigator.vibrate(200);
         }
+    };
+
+    const handleMultiToggle = (option: string) => {
+        setSelectedMulti(prev =>
+            prev.includes(option)
+                ? prev.filter(o => o !== option)
+                : [...prev, option]
+        );
+        if (navigator.vibrate) {
+            navigator.vibrate(50);
+        }
+    };
+
+    const handleMultiSubmit = () => {
+        if (selectedMulti.length === 0) {
+            toast.error('하나 이상의 항목을 선택해주세요');
+            return;
+        }
+        setSelectedChoice(selectedMulti.join(', '));
+        setShowConfirmation(true);
     };
 
     const handleInputSubmit = () => {
@@ -91,6 +114,11 @@ export default function VotingPanel({ agenda, onVoteComplete }: VotingPanelProps
                         {agenda.description}
                     </p>
                 )}
+                {isMultiChoice && (
+                    <p className="text-xs text-primary font-medium">
+                        ✅ 복수 선택 가능 · {selectedMulti.length}개 선택됨
+                    </p>
+                )}
             </div>
 
             {/* Voting area: fills remaining space */}
@@ -124,7 +152,7 @@ export default function VotingPanel({ agenda, onVoteComplete }: VotingPanelProps
                     </div>
                 )}
 
-                {/* MULTIPLE_CHOICE */}
+                {/* MULTIPLE_CHOICE (단일 선택) */}
                 {agenda.type === 'MULTIPLE_CHOICE' && (
                     <div className="space-y-2 py-2">
                         {(agenda.options || []).map((option: string, index: number) => (
@@ -139,6 +167,52 @@ export default function VotingPanel({ agenda, onVoteComplete }: VotingPanelProps
                                 <span className="text-base font-medium">{option}</span>
                             </button>
                         ))}
+                    </div>
+                )}
+
+                {/* MULTIPLE_CHOICE_MULTI (복수 선택) */}
+                {agenda.type === 'MULTIPLE_CHOICE_MULTI' && (
+                    <div className="space-y-2 py-2">
+                        {(agenda.options || []).map((option: string, index: number) => {
+                            const isSelected = selectedMulti.includes(option);
+                            return (
+                                <button
+                                    key={index}
+                                    onClick={() => handleMultiToggle(option)}
+                                    className={`w-full p-4 text-left border-2 rounded-xl transition-all duration-200 flex items-center gap-3 active:scale-98 ${
+                                        isSelected
+                                            ? 'bg-primary/10 border-primary shadow-md shadow-primary/10'
+                                            : 'bg-card hover:bg-muted/50 border-border hover:border-primary/50'
+                                    }`}
+                                >
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm flex-shrink-0 transition-all duration-200 ${
+                                        isSelected
+                                            ? 'bg-primary text-white'
+                                            : 'bg-muted/50 text-muted-foreground border border-border'
+                                    }`}>
+                                        {isSelected ? '✓' : index + 1}
+                                    </div>
+                                    <span className={`text-base font-medium ${isSelected ? 'text-primary' : ''}`}>
+                                        {option}
+                                    </span>
+                                    {isSelected && (
+                                        <span className="ml-auto text-primary text-sm">선택됨</span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                        <div className="pt-3">
+                            <Button
+                                onClick={handleMultiSubmit}
+                                size="lg"
+                                fullWidth
+                                disabled={selectedMulti.length === 0}
+                            >
+                                {selectedMulti.length > 0
+                                    ? `${selectedMulti.length}개 선택 · 투표하기`
+                                    : '항목을 선택해주세요'}
+                            </Button>
+                        </div>
                     </div>
                 )}
 
@@ -172,6 +246,7 @@ export default function VotingPanel({ agenda, onVoteComplete }: VotingPanelProps
                 <ul className="space-y-0.5">
                     <li>• 한 번 투표하면 변경할 수 없습니다</li>
                     <li>• 신중하게 선택해주세요</li>
+                    {isMultiChoice && <li>• 여러 항목을 선택한 후 투표하기 버튼을 눌러주세요</li>}
                 </ul>
             </div>
 
@@ -189,3 +264,4 @@ export default function VotingPanel({ agenda, onVoteComplete }: VotingPanelProps
         </div>
     );
 }
+
