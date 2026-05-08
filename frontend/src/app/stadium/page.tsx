@@ -24,6 +24,8 @@ function StadiumContent() {
     // Theme state
     const [theme, setTheme] = useState<Theme>((searchParams.get('theme') as Theme) || 'classic');
     const [showThemePicker, setShowThemePicker] = useState(false);
+    const [fontScale, setFontScale] = useState(1);
+    const [showSizePicker, setShowSizePicker] = useState(false);
 
     // Data state
     const [stats, setStats] = useState<any>(null);
@@ -136,6 +138,9 @@ function StadiumContent() {
                 if (settings.stadiumTheme) {
                     setTheme(settings.stadiumTheme as Theme);
                 }
+                if (settings.accessCode) {
+                    setAccessCode(settings.accessCode);
+                }
             });
 
             socketService.on('stadium:control', ({ action }) => {
@@ -158,6 +163,7 @@ function StadiumContent() {
                 socketService.off('result:published');
                 socketService.off('stage:changed');
                 socketService.off('vote:ended');
+                socketService.off('session:settings:update');
                 socketService.off('stadium:control');
             };
         }
@@ -206,8 +212,8 @@ function StadiumContent() {
             </header>
 
             {/* Main Content */}
-            <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-8 w-full max-w-[90rem] mx-auto"
-                style={{ minHeight: 'calc(100vh - 120px)' }}>
+            <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-8 w-full mx-auto"
+                style={{ minHeight: 'calc(100vh - 120px)', fontSize: `${fontScale}rem`, maxWidth: fontScale > 2 ? '100%' : '90rem' }}>
 
                 {/* ===== PENDING / LOGO ===== */}
                 {(isPending || forceShowLogo) && (
@@ -485,8 +491,38 @@ function StadiumContent() {
                 )}
             </main>
 
-            {/* Bottom Controls: Theme Picker + Fullscreen */}
+            {/* Bottom Controls: Font Size + Theme Picker + Fullscreen */}
             <div className="fixed bottom-6 right-6 z-[100] flex items-center gap-3">
+                {/* Font Size Picker */}
+                <div className="relative">
+                    {showSizePicker && (
+                        <div className="absolute bottom-14 right-0 p-3 rounded-2xl border border-white/10 shadow-2xl flex gap-2"
+                            style={{ backgroundColor: `rgba(var(--card), 0.95)`, backdropFilter: 'blur(20px)' }}>
+                            {[{ scale: 1, label: 'x1' }, { scale: 2, label: 'x2' }, { scale: 3, label: 'x3' }, { scale: 4, label: 'x4' }, { scale: 5, label: 'x5' }].map((s) => (
+                                <button
+                                    key={s.scale}
+                                    onClick={() => { setFontScale(s.scale); setShowSizePicker(false); }}
+                                    className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all ${fontScale === s.scale ? 'ring-2 ring-white/50 scale-105' : 'hover:bg-white/10'}`}
+                                    title={`글자 크기 ${s.label}`}
+                                >
+                                    <span className="text-base font-bold" style={{ fontSize: `${10 + s.scale * 3}px` }}>A</span>
+                                    <span className="text-[10px] font-medium opacity-70">{s.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    <button
+                        onClick={() => { setShowSizePicker(!showSizePicker); setShowThemePicker(false); }}
+                        className="p-3.5 rounded-full transition-all duration-300 border border-white/10 shadow-xl group"
+                        style={{ backgroundColor: `rgba(var(--surface), 0.7)`, backdropFilter: 'blur(12px)' }}
+                        title="글자 크기"
+                    >
+                        <svg className="w-5 h-5 text-white opacity-70 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h8m-8 6h16" />
+                        </svg>
+                    </button>
+                </div>
+
                 {/* Theme Picker */}
                 <div className="relative">
                     {showThemePicker && (
@@ -506,7 +542,7 @@ function StadiumContent() {
                         </div>
                     )}
                     <button
-                        onClick={() => setShowThemePicker(!showThemePicker)}
+                        onClick={() => { setShowThemePicker(!showThemePicker); setShowSizePicker(false); }}
                         className="p-3.5 rounded-full transition-all duration-300 border border-white/10 shadow-xl group"
                         style={{ backgroundColor: `rgba(var(--surface), 0.7)`, backdropFilter: 'blur(12px)' }}
                         title="테마 변경"

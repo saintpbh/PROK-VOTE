@@ -89,6 +89,14 @@ export default function SessionManager() {
         try {
             const response = await api.updateAccessCode(sessionId);
             toast.success(`새 접속 코드: ${response.accessCode}`);
+
+            // Notify stadium display via WebSocket
+            const { default: socketService } = await import('@/lib/socket');
+            socketService.emit('session:settings:update', {
+                sessionId,
+                accessCode: response.accessCode,
+            });
+
             fetchSessions();
         } catch (error: any) {
             toast.error('접속 코드 갱신에 실패했습니다');
