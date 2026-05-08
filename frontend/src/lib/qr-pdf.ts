@@ -13,6 +13,55 @@ class QRPDFGenerator {
     private readonly CODES_PER_ROW = 3;
     private readonly CODES_PER_COL = 4;
     private readonly CODES_PER_PAGE = 12;
+    private fontLoaded = false;
+
+    /**
+     * Load Korean font (NanumGothic) into jsPDF
+     */
+    private async loadKoreanFont(pdf: jsPDF): Promise<void> {
+        if (this.fontLoaded) return;
+
+        try {
+            // Load regular font
+            const regularResponse = await fetch('/fonts/NanumGothic-Regular.ttf');
+            const regularBuffer = await regularResponse.arrayBuffer();
+            const regularBase64 = this.arrayBufferToBase64(regularBuffer);
+            pdf.addFileToVFS('NanumGothic-Regular.ttf', regularBase64);
+            pdf.addFont('NanumGothic-Regular.ttf', 'NanumGothic', 'normal');
+
+            // Load bold font
+            const boldResponse = await fetch('/fonts/NanumGothic-Bold.ttf');
+            const boldBuffer = await boldResponse.arrayBuffer();
+            const boldBase64 = this.arrayBufferToBase64(boldBuffer);
+            pdf.addFileToVFS('NanumGothic-Bold.ttf', boldBase64);
+            pdf.addFont('NanumGothic-Bold.ttf', 'NanumGothic', 'bold');
+
+            this.fontLoaded = true;
+        } catch (error) {
+            console.error('Failed to load Korean font:', error);
+            // Fallback to helvetica
+        }
+    }
+
+    private arrayBufferToBase64(buffer: ArrayBuffer): string {
+        let binary = '';
+        const bytes = new Uint8Array(buffer);
+        for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary);
+    }
+
+    /**
+     * Set font safely — use Korean font if loaded, fallback to helvetica
+     */
+    private setFont(pdf: jsPDF, style: 'normal' | 'bold' = 'normal'): void {
+        try {
+            pdf.setFont('NanumGothic', style);
+        } catch {
+            pdf.setFont('helvetica', style === 'bold' ? 'bold' : 'normal');
+        }
+    }
 
     /**
      * Generate PDF with QR codes designed as cuttable voting tickets.
@@ -24,6 +73,9 @@ class QRPDFGenerator {
             unit: 'mm',
             format: 'a4',
         });
+
+        // Load Korean font
+        await this.loadKoreanFont(pdf);
 
         const qrCodes: QRCodeData[] = tokens.map((tokenId) => ({
             tokenId,
@@ -44,6 +96,8 @@ class QRPDFGenerator {
         for (let page = 0; page < totalPages; page++) {
             if (page > 0) {
                 pdf.addPage();
+                // Re-register fonts on new page
+                await this.loadKoreanFont(pdf);
             }
 
             const startIdx = page * this.CODES_PER_PAGE;
@@ -82,24 +136,22 @@ class QRPDFGenerator {
                 // ---- Header bar (dark) ----
                 const headerH = 9;
                 pdf.setFillColor(30, 30, 45);
-                // Top-left and top-right rounded corners using clip trick
                 pdf.roundedRect(innerX, innerY, innerW, headerH + 2, 2, 2, 'F');
-                // Fill bottom part of header to make it rectangular at bottom
                 pdf.rect(innerX, innerY + 2, innerW, headerH, 'F');
 
                 // Session name in header
                 pdf.setTextColor(255, 255, 255);
                 pdf.setFontSize(8);
-                pdf.setFont('helvetica', 'bold');
+                this.setFont(pdf, 'bold');
                 const titleMaxWidth = innerW - 6;
                 const titleText = this.truncateText(pdf, displayName, titleMaxWidth);
                 pdf.text(titleText, innerX + innerW / 2, innerY + 5.5, { align: 'center' });
 
-                // "투표권" subtitle
+                // Subtitle
                 pdf.setFontSize(5.5);
-                pdf.setFont('helvetica', 'normal');
+                this.setFont(pdf, 'normal');
                 pdf.setTextColor(180, 180, 200);
-                pdf.text('VOTING TICKET', innerX + innerW / 2, innerY + 9, { align: 'center' });
+                pdf.text('해당 세션에만 투표가 가능합니다', innerX + innerW / 2, innerY + 9, { align: 'center' });
 
                 // ---- QR Code ----
                 const qrDataUrl = await QRCode.toDataURL(pageCodes[i].url, {
@@ -137,7 +189,7 @@ class QRPDFGenerator {
                 const ticketNum = startIdx + i + 1;
                 pdf.setTextColor(80, 80, 100);
                 pdf.setFontSize(6);
-                pdf.setFont('helvetica', 'bold');
+                this.setFont(pdf, 'bold');
                 pdf.text(
                     `No. ${String(ticketNum).padStart(3, '0')}`,
                     innerX + innerW / 2,
@@ -145,12 +197,12 @@ class QRPDFGenerator {
                     { align: 'center' }
                 );
 
-                // Instruction text
+                // Instruction text (Korean)
                 pdf.setFontSize(5);
-                pdf.setFont('helvetica', 'normal');
+                this.setFont(pdf, 'normal');
                 pdf.setTextColor(140, 140, 160);
                 pdf.text(
-                    'Scan QR to vote',
+                    '스마트폰 카메라로 QR코드를 스캔해 주세요',
                     innerX + innerW / 2,
                     footerY + 5.5,
                     { align: 'center' }
