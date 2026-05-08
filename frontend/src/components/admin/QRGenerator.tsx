@@ -18,6 +18,20 @@ export default function QRGenerator({ sessionId, sessionName }: QRGeneratorProps
     const [loading, setLoading] = useState(false);
     const [generatedTokens, setGeneratedTokens] = useState<string[]>([]);
     const [preview, setPreview] = useState<string | null>(null);
+    const [titleColor, setTitleColor] = useState<{ r: number; g: number; b: number; label: string; hex: string }>({
+        r: 30, g: 30, b: 45, label: '기본(검정)', hex: '#1e1e2d'
+    });
+
+    const TITLE_COLORS = [
+        { r: 30,  g: 30,  b: 45,  label: '기본',  hex: '#1e1e2d' },
+        { r: 220, g: 38,  b: 38,  label: '빨강',  hex: '#dc2626' },
+        { r: 234, g: 88,  b: 12,  label: '주황',  hex: '#ea580c' },
+        { r: 202, g: 138, b: 4,   label: '노랑',  hex: '#ca8a04' },
+        { r: 22,  g: 163, b: 74,  label: '초록',  hex: '#16a34a' },
+        { r: 37,  g: 99,  b: 235, label: '파랑',  hex: '#2563eb' },
+        { r: 30,  g: 58,  b: 138, label: '남색',  hex: '#1e3a8a' },
+        { r: 147, g: 51,  b: 234, label: '보라',  hex: '#9333ea' },
+    ];
 
     const handleGenerate = async () => {
         if (count < 1 || count > 500) {
@@ -93,7 +107,7 @@ export default function QRGenerator({ sessionId, sessionName }: QRGeneratorProps
                 }
             }
             
-            await qrPDFGenerator.generatePDF(generatedTokens, baseUrl, sessionName);
+            await qrPDFGenerator.generatePDF(generatedTokens, baseUrl, sessionName, { r: titleColor.r, g: titleColor.g, b: titleColor.b });
             toast.success('PDF 다운로드가 시작되었습니다');
         } catch (error: any) {
             toast.error('PDF 생성에 실패했습니다');
@@ -127,6 +141,27 @@ export default function QRGenerator({ sessionId, sessionName }: QRGeneratorProps
                             QR 코드 생성
                         </Button>
                     </div>
+                </div>
+
+                {/* Title Bar Color Selector */}
+                <div className="col-span-1 md:col-span-2">
+                    <label className="block text-sm font-medium mb-2">타이틀바 색상</label>
+                    <div className="flex flex-wrap gap-2">
+                        {TITLE_COLORS.map((color) => (
+                            <button
+                                key={color.hex}
+                                onClick={() => setTitleColor(color)}
+                                className={`w-10 h-10 rounded-lg border-2 transition-all duration-150 hover:scale-110 ${
+                                    titleColor.hex === color.hex
+                                        ? 'border-white ring-2 ring-primary scale-110'
+                                        : 'border-transparent opacity-70 hover:opacity-100'
+                                }`}
+                                style={{ backgroundColor: color.hex }}
+                                title={color.label}
+                            />
+                        ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">선택: {titleColor.label}</p>
                 </div>
 
                 {generatedTokens.length > 0 && (

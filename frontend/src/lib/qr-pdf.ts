@@ -123,7 +123,7 @@ class QRPDFGenerator {
      * Each ticket includes session name, QR code, and ticket number.
      * Korean text is rendered via Canvas to avoid jsPDF font compatibility issues.
      */
-    async generatePDF(tokens: string[], baseUrl: string, sessionName?: string): Promise<void> {
+    async generatePDF(tokens: string[], baseUrl: string, sessionName?: string, titleColor?: { r: number; g: number; b: number }): Promise<void> {
         // Load KoPub Dotum Bold font before rendering
         await this.loadKoPubFont();
 
@@ -216,9 +216,10 @@ class QRPDFGenerator {
                 pdf.setLineWidth(0.2);
                 pdf.roundedRect(innerX, innerY, innerW, innerH, 2, 2, 'FD');
 
-                // ---- Header bar (dark, taller for readability) ----
+                // ---- Header bar (colored, taller for readability) ----
                 const headerH = 16;
-                pdf.setFillColor(30, 30, 45);
+                const hc = titleColor || { r: 30, g: 30, b: 45 };
+                pdf.setFillColor(hc.r, hc.g, hc.b);
                 pdf.roundedRect(innerX, innerY, innerW, headerH + 2, 2, 2, 'F');
                 pdf.rect(innerX, innerY + 2, innerW, headerH, 'F');
 
