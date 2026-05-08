@@ -20,8 +20,6 @@ export default function VotingPanel({ agenda, onVoteComplete }: VotingPanelProps
     const [loading, setLoading] = useState(false);
     const { voterId } = useAuthStore();
 
-    console.log('[VotingPanel] agenda:', JSON.stringify({ type: agenda.type, options: agenda.options, title: agenda.title }));
-
     const isMultiChoice = agenda.type === 'MULTIPLE_CHOICE_MULTI';
 
     const handleChoiceClick = (choice: string) => {
