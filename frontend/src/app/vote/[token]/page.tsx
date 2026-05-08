@@ -210,10 +210,18 @@ export default function VotePage() {
                 setState('voting');
                 checkVoteStatus();
             } else if (stage === 'submitted') {
+                haptic('press');
+                toast('새 안건이 상정되었습니다', { icon: '📋' });
                 setState('waiting');
                 checkVoteStatus();
-            } else if (stage === 'ended' || stage === 'announced') {
+            } else if (stage === 'ended') {
+                haptic('voteEnd');
                 setState(prev => prev === 'voting' ? 'completed' : 'waiting');
+                checkVoteStatus();
+            } else if (stage === 'announced') {
+                haptic('success');
+                toast('결과가 발표되었습니다', { icon: '📊' });
+                setState('waiting');
                 checkVoteStatus();
             }
         };
