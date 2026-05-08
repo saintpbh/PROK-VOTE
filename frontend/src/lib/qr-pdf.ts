@@ -13,6 +13,57 @@ class QRPDFGenerator {
     private readonly CODES_PER_ROW = 3;
     private readonly CODES_PER_COL = 4;
     private readonly CODES_PER_PAGE = 12;
+    private fontLoaded = false;
+
+    /**
+     * Load KoPub Dotum Bold web font via @font-face for Canvas rendering
+     */
+    private async loadKoPubFont(): Promise<void> {
+        if (this.fontLoaded) return;
+
+        try {
+            // Inject @font-face if not already present
+            if (!document.getElementById('kopub-font-style')) {
+                const style = document.createElement('style');
+                style.id = 'kopub-font-style';
+                style.textContent = `
+                    @font-face {
+                        font-family: 'KoPub Dotum';
+                        font-weight: 700;
+                        font-style: normal;
+                        src: url('https://cdn.jsdelivr.net/npm/font-kopub@1.0.2/fonts/KoPubDotumBold.woff2') format('woff2'),
+                             url('https://cdn.jsdelivr.net/npm/font-kopub@1.0.2/fonts/KoPubDotumBold.woff') format('woff');
+                    }
+                    @font-face {
+                        font-family: 'KoPub Dotum';
+                        font-weight: 500;
+                        font-style: normal;
+                        src: url('https://cdn.jsdelivr.net/npm/font-kopub@1.0.2/fonts/KoPubDotumMedium.woff2') format('woff2'),
+                             url('https://cdn.jsdelivr.net/npm/font-kopub@1.0.2/fonts/KoPubDotumMedium.woff') format('woff');
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
+            // Force browser to load the font by rendering an invisible element
+            const preload = document.createElement('span');
+            preload.style.fontFamily = "'KoPub Dotum'";
+            preload.style.fontWeight = '700';
+            preload.style.position = 'absolute';
+            preload.style.left = '-9999px';
+            preload.style.fontSize = '1px';
+            preload.textContent = '가나다라';
+            document.body.appendChild(preload);
+
+            // Wait for font to be ready
+            await document.fonts.ready;
+            document.body.removeChild(preload);
+
+            this.fontLoaded = true;
+        } catch (error) {
+            console.warn('KoPub font load failed, using fallback:', error);
+        }
+    }
 
     /**
      * Render text to a canvas image (supports Korean/CJK natively via browser fonts).
@@ -29,9 +80,10 @@ class QRPDFGenerator {
             height: number;
             align?: 'center' | 'left' | 'right';
             fontFamily?: string;
+            extraBold?: boolean; // Use strokeText for extra thickness
         }
     ): string {
-        const scale = 3; // High-res for crisp text
+        const scale = 4; // Higher res for KoPub crisp rendering
         const canvas = document.createElement('canvas');
         canvas.width = options.maxWidth * scale;
         canvas.height = options.height * scale;
@@ -45,13 +97,22 @@ class QRPDFGenerator {
 
         // Text
         const weight = options.fontWeight || 'normal';
-        const family = options.fontFamily || "'Nanum Gothic', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif";
+        const family = options.fontFamily || "'KoPub Dotum', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif";
         ctx.font = `${weight} ${options.fontSize * scale}px ${family}`;
         ctx.fillStyle = options.color || '#000000';
         ctx.textAlign = options.align || 'center';
         ctx.textBaseline = 'middle';
 
         const xPos = options.align === 'left' ? 10 : options.align === 'right' ? canvas.width - 10 : canvas.width / 2;
+
+        // Extra bold: draw stroke + fill for thick text
+        if (options.extraBold) {
+            ctx.strokeStyle = options.color || '#000000';
+            ctx.lineWidth = scale * 1.2;
+            ctx.lineJoin = 'round';
+            ctx.strokeText(text, xPos, canvas.height / 2, canvas.width - 20);
+        }
+
         ctx.fillText(text, xPos, canvas.height / 2, canvas.width - 20);
 
         return canvas.toDataURL('image/png');
@@ -63,6 +124,9 @@ class QRPDFGenerator {
      * Korean text is rendered via Canvas to avoid jsPDF font compatibility issues.
      */
     async generatePDF(tokens: string[], baseUrl: string, sessionName?: string): Promise<void> {
+        // Load KoPub Dotum Bold font before rendering
+        await this.loadKoPubFont();
+
         const pdf = new jsPDF({
             orientation: 'portrait',
             unit: 'mm',
@@ -85,14 +149,15 @@ class QRPDFGenerator {
 
         const totalPages = Math.ceil(qrCodes.length / this.CODES_PER_PAGE);
 
-        // Pre-render reusable text images (Korean) — large & bold for elderly voters
+        // Pre-render reusable text images (Korean) — KoPub Dotum Bold, extra bold for elderly voters
         const headerTextImg = this.renderTextImage(displayName, {
-            fontSize: 20,
-            fontWeight: '900',
+            fontSize: 22,
+            fontWeight: '700',
             color: '#FFFFFF',
             maxWidth: 400,
-            height: 34,
+            height: 36,
             align: 'center',
+            extraBold: true, // stroke + fill for maximum thickness
         });
 
         const subtitleImg = this.renderTextImage('해당 세션에만 투표가 가능합니다', {
