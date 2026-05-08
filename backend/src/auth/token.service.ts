@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Token } from '../entities';
@@ -44,15 +44,15 @@ export class TokenService {
         });
 
         if (!token) {
-            throw new Error('Token not found');
+            throw new UnauthorizedException('유효하지 않은 QR 코드입니다.');
         }
 
         if (token.isRevoked) {
-            throw new Error('Token has been revoked');
+            throw new UnauthorizedException('이 QR 코드는 만료되었습니다. 진행팀에 문의하세요.');
         }
 
         if (token.deviceFingerprint && token.deviceFingerprint !== fingerprint) {
-            throw new Error('Token already bound to another device');
+            throw new UnauthorizedException('이미 사용된 QR입니다. 진행팀에 문의하세요.');
         }
 
         token.deviceFingerprint = fingerprint;
