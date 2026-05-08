@@ -31,15 +31,15 @@ class QRPDFGenerator {
                         font-family: 'KoPub Dotum';
                         font-weight: 700;
                         font-style: normal;
-                        src: url('https://cdn.jsdelivr.net/npm/font-kopub@1.0.2/fonts/KoPubDotumBold.woff2') format('woff2'),
-                             url('https://cdn.jsdelivr.net/npm/font-kopub@1.0.2/fonts/KoPubDotumBold.woff') format('woff');
+                        src: url('https://cdn.jsdelivr.net/npm/font-kopub@1.0/fonts/KoPubDotum-Bold.woff') format('woff'),
+                             url('https://cdn.jsdelivr.net/npm/font-kopub@1.0/fonts/KoPubDotum-Bold.ttf') format('truetype');
                     }
                     @font-face {
                         font-family: 'KoPub Dotum';
-                        font-weight: 500;
+                        font-weight: 400;
                         font-style: normal;
-                        src: url('https://cdn.jsdelivr.net/npm/font-kopub@1.0.2/fonts/KoPubDotumMedium.woff2') format('woff2'),
-                             url('https://cdn.jsdelivr.net/npm/font-kopub@1.0.2/fonts/KoPubDotumMedium.woff') format('woff');
+                        src: url('https://cdn.jsdelivr.net/npm/font-kopub@1.0/fonts/KoPubDotum-Medium.woff') format('woff'),
+                             url('https://cdn.jsdelivr.net/npm/font-kopub@1.0/fonts/KoPubDotum-Medium.ttf') format('truetype');
                     }
                 `;
                 document.head.appendChild(style);
