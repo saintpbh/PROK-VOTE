@@ -13,33 +13,37 @@ class QRPDFGenerator {
     private readonly CODES_PER_ROW = 3;
     private readonly CODES_PER_COL = 4;
     private readonly CODES_PER_PAGE = 12;
-    private fontLoaded = false;
+    private cachedFonts: { regular: string; bold: string } | null = null;
 
     /**
-     * Load Korean font (NanumGothic) into jsPDF
+     * Load Korean font (NanumGothic) into jsPDF instance
+     * Font data is cached after first fetch, but registered on each new PDF instance
      */
     private async loadKoreanFont(pdf: jsPDF): Promise<void> {
-        if (this.fontLoaded) return;
-
         try {
-            // Load regular font
-            const regularResponse = await fetch('/fonts/NanumGothic-Regular.ttf');
-            const regularBuffer = await regularResponse.arrayBuffer();
-            const regularBase64 = this.arrayBufferToBase64(regularBuffer);
-            pdf.addFileToVFS('NanumGothic-Regular.ttf', regularBase64);
+            if (!this.cachedFonts) {
+                // Fetch font files only once
+                const [regularResponse, boldResponse] = await Promise.all([
+                    fetch('/fonts/NanumGothic-Regular.ttf'),
+                    fetch('/fonts/NanumGothic-Bold.ttf'),
+                ]);
+                const [regularBuffer, boldBuffer] = await Promise.all([
+                    regularResponse.arrayBuffer(),
+                    boldResponse.arrayBuffer(),
+                ]);
+                this.cachedFonts = {
+                    regular: this.arrayBufferToBase64(regularBuffer),
+                    bold: this.arrayBufferToBase64(boldBuffer),
+                };
+            }
+
+            // Register fonts on this PDF instance
+            pdf.addFileToVFS('NanumGothic-Regular.ttf', this.cachedFonts.regular);
             pdf.addFont('NanumGothic-Regular.ttf', 'NanumGothic', 'normal');
-
-            // Load bold font
-            const boldResponse = await fetch('/fonts/NanumGothic-Bold.ttf');
-            const boldBuffer = await boldResponse.arrayBuffer();
-            const boldBase64 = this.arrayBufferToBase64(boldBuffer);
-            pdf.addFileToVFS('NanumGothic-Bold.ttf', boldBase64);
+            pdf.addFileToVFS('NanumGothic-Bold.ttf', this.cachedFonts.bold);
             pdf.addFont('NanumGothic-Bold.ttf', 'NanumGothic', 'bold');
-
-            this.fontLoaded = true;
         } catch (error) {
             console.error('Failed to load Korean font:', error);
-            // Fallback to helvetica
         }
     }
 
@@ -96,8 +100,6 @@ class QRPDFGenerator {
         for (let page = 0; page < totalPages; page++) {
             if (page > 0) {
                 pdf.addPage();
-                // Re-register fonts on new page
-                await this.loadKoreanFont(pdf);
             }
 
             const startIdx = page * this.CODES_PER_PAGE;
