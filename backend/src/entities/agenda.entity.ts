@@ -28,7 +28,7 @@ export class Agenda {
     @Column({ type: 'text', nullable: true })
     description: string;
 
-    @Column({ type: 'varchar', length: 20, default: 'PROS_CONS' })
+    @Column({ type: 'varchar', length: 50, default: 'PROS_CONS' })
     type: AgendaType;
 
     @Column({ type: 'jsonb', nullable: true })

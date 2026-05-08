@@ -56,6 +56,8 @@ CREATE TABLE agendas (
   session_id UUID REFERENCES sessions(id) ON DELETE CASCADE,
   title VARCHAR(500) NOT NULL,
   description TEXT,
+  type VARCHAR(50) DEFAULT 'PROS_CONS', -- 'PROS_CONS', 'MULTIPLE_CHOICE', 'MULTIPLE_CHOICE_MULTI', 'INPUT'
+  options JSONB, -- Array of option strings for multiple choice types
   display_order INT DEFAULT 0,
   stage VARCHAR(50) DEFAULT 'pending', -- 'pending', 'submitted', 'voting', 'ended', 'announced'
   is_important BOOLEAN DEFAULT false, -- Important votes require re-authentication
