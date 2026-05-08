@@ -405,112 +405,116 @@ export default function AgendaList({ sessionId, onAgendaSelect }: { sessionId: s
                 title="새 안건 추가"
                 size="md"
             >
-                <div className="space-y-4">
-                    <Input
-                        label="안건 제목"
-                        placeholder="예: 제1호 안건 - 회의록 승인"
-                        value={formData.title}
-                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    />
-
-                    <div>
-                        <label className="text-sm font-medium text-foreground mb-2 block">
-                            안건 설명 (선택사항)
-                        </label>
-                        <textarea
-                            className="input min-h-[100px] resize-none"
-                            placeholder="안건에 대한 상세 설명을 입력하세요"
-                            value={formData.description}
-                            onChange={(e) =>
-                                setFormData({ ...formData, description: e.target.value })
-                            }
+                <div className="flex flex-col max-h-[calc(90vh-6rem)]">
+                    {/* Scrollable form area */}
+                    <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+                        <Input
+                            label="안건 제목"
+                            placeholder="예: 제1호 안건 - 회의록 승인"
+                            value={formData.title}
+                            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                         />
-                    </div>
 
-                    <div>
-                        <label className="text-sm font-medium text-foreground mb-2 block">
-                            투표 방식
-                        </label>
-                        <div className="grid grid-cols-2 gap-2">
-                            {[
-                                { id: 'PROS_CONS', label: '찬성/반대' },
-                                { id: 'MULTIPLE_CHOICE', label: '다지선다(1개)' },
-                                { id: 'MULTIPLE_CHOICE_MULTI', label: '다지선다(복수)' },
-                                { id: 'INPUT', label: '입력(주관식)' },
-                            ].map((type) => (
-                                <div
-                                    key={type.id}
-                                    onClick={() => setFormData({ ...formData, type: type.id as any })}
-                                    className={`cursor-pointer p-3 rounded-lg border-2 text-center transition-all ${formData.type === type.id
-                                        ? 'border-primary bg-primary/5 text-primary font-bold'
-                                        : 'border-border hover:border-muted-foreground/50'
-                                        }`}
-                                >
-                                    {type.label}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {(formData.type === 'MULTIPLE_CHOICE' || formData.type === 'MULTIPLE_CHOICE_MULTI') && (
-                        <div className="space-y-2 p-4 bg-muted/30 rounded-lg">
-                            <label className="text-sm font-medium text-foreground block">
-                                투표 옵션 설정 (최소 2개)
-                                {formData.type === 'MULTIPLE_CHOICE_MULTI' && (
-                                    <span className="text-xs text-secondary ml-2">(복수선택 가능)</span>
-                                )}
+                        <div>
+                            <label className="text-sm font-medium text-foreground mb-2 block">
+                                안건 설명 (선택사항)
                             </label>
-                            {formData.options.map((option, index) => (
-                                <div key={index} className="flex gap-2">
-                                    <Input
-                                        placeholder={`옵션 ${index + 1}`}
-                                        value={option}
-                                        onChange={(e) => {
-                                            const newOptions = [...formData.options];
-                                            newOptions[index] = e.target.value;
-                                            setFormData({ ...formData, options: newOptions });
-                                        }}
-                                    />
-                                    <Button
-                                        variant="danger"
-                                        size="sm"
-                                        onClick={() => {
-                                            const newOptions = formData.options.filter((_, i) => i !== index);
-                                            setFormData({ ...formData, options: newOptions });
-                                        }}
-                                        disabled={formData.options.length <= 1}
-                                    >
-                                        ✕
-                                    </Button>
-                                </div>
-                            ))}
-                            <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => setFormData({ ...formData, options: [...formData.options, ''] })}
-                                fullWidth
-                            >
-                                + 옵션 추가
-                            </Button>
+                            <textarea
+                                className="input min-h-[100px] resize-none"
+                                placeholder="안건에 대한 상세 설명을 입력하세요"
+                                value={formData.description}
+                                onChange={(e) =>
+                                    setFormData({ ...formData, description: e.target.value })
+                                }
+                            />
                         </div>
-                    )}
 
-                    <div className="flex items-center gap-3 p-3 bg-danger/10 rounded-lg border border-danger/30">
-                        <input
-                            type="checkbox"
-                            id="isImportant"
-                            checked={formData.isImportant}
-                            onChange={(e) =>
-                                setFormData({ ...formData, isImportant: e.target.checked })
-                            }
-                            className="w-5 h-5"
-                        />
-                        <label htmlFor="isImportant" className="text-sm cursor-pointer">
-                            중요 투표 (재인증 필요)
-                        </label>
+                        <div>
+                            <label className="text-sm font-medium text-foreground mb-2 block">
+                                투표 방식
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {[
+                                    { id: 'PROS_CONS', label: '찬성/반대' },
+                                    { id: 'MULTIPLE_CHOICE', label: '다지선다(1개)' },
+                                    { id: 'MULTIPLE_CHOICE_MULTI', label: '다지선다(복수)' },
+                                    { id: 'INPUT', label: '입력(주관식)' },
+                                ].map((type) => (
+                                    <div
+                                        key={type.id}
+                                        onClick={() => setFormData({ ...formData, type: type.id as any })}
+                                        className={`cursor-pointer p-3 rounded-lg border-2 text-center transition-all ${formData.type === type.id
+                                            ? 'border-primary bg-primary/5 text-primary font-bold'
+                                            : 'border-border hover:border-muted-foreground/50'
+                                            }`}
+                                    >
+                                        {type.label}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {(formData.type === 'MULTIPLE_CHOICE' || formData.type === 'MULTIPLE_CHOICE_MULTI') && (
+                            <div className="space-y-2 p-4 bg-muted/30 rounded-lg">
+                                <label className="text-sm font-medium text-foreground block">
+                                    투표 옵션 설정 (최소 2개)
+                                    {formData.type === 'MULTIPLE_CHOICE_MULTI' && (
+                                        <span className="text-xs text-secondary ml-2">(복수선택 가능)</span>
+                                    )}
+                                </label>
+                                {formData.options.map((option, index) => (
+                                    <div key={index} className="flex gap-2">
+                                        <Input
+                                            placeholder={`옵션 ${index + 1}`}
+                                            value={option}
+                                            onChange={(e) => {
+                                                const newOptions = [...formData.options];
+                                                newOptions[index] = e.target.value;
+                                                setFormData({ ...formData, options: newOptions });
+                                            }}
+                                        />
+                                        <Button
+                                            variant="danger"
+                                            size="sm"
+                                            onClick={() => {
+                                                const newOptions = formData.options.filter((_, i) => i !== index);
+                                                setFormData({ ...formData, options: newOptions });
+                                            }}
+                                            disabled={formData.options.length <= 1}
+                                        >
+                                            ✕
+                                        </Button>
+                                    </div>
+                                ))}
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => setFormData({ ...formData, options: [...formData.options, ''] })}
+                                    fullWidth
+                                >
+                                    + 옵션 추가
+                                </Button>
+                            </div>
+                        )}
+
+                        <div className="flex items-center gap-3 p-3 bg-danger/10 rounded-lg border border-danger/30">
+                            <input
+                                type="checkbox"
+                                id="isImportant"
+                                checked={formData.isImportant}
+                                onChange={(e) =>
+                                    setFormData({ ...formData, isImportant: e.target.checked })
+                                }
+                                className="w-5 h-5"
+                            />
+                            <label htmlFor="isImportant" className="text-sm cursor-pointer">
+                                중요 투표 (재인증 필요)
+                            </label>
+                        </div>
                     </div>
 
-                    <div className="flex gap-3 pt-4">
+                    {/* Fixed bottom buttons */}
+                    <div className="flex gap-3 pt-4 mt-4 border-t border-border/30 flex-shrink-0">
                         <Button
                             variant="ghost"
                             onClick={() => setShowCreateModal(false)}
