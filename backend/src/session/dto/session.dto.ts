@@ -49,8 +49,8 @@ export class CreateAgendaDto {
     isImportant?: boolean;
 
     @IsOptional()
-    @IsEnum(['PROS_CONS', 'MULTIPLE_CHOICE', 'INPUT'])
-    type?: 'PROS_CONS' | 'MULTIPLE_CHOICE' | 'INPUT';
+    @IsEnum(['PROS_CONS', 'MULTIPLE_CHOICE', 'MULTIPLE_CHOICE_MULTI', 'INPUT'])
+    type?: 'PROS_CONS' | 'MULTIPLE_CHOICE' | 'MULTIPLE_CHOICE_MULTI' | 'INPUT';
 
     @IsOptional()
     @IsArray()

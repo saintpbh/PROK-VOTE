@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Loading from '@/components/ui/Loading';
 import AuthFlow from '@/components/voter/AuthFlow';
@@ -25,19 +25,18 @@ export default function VotePage() {
     const { isAuthenticated, voterId, sessionId } = useAuthStore();
     const { currentAgenda, setCurrentAgenda } = useSessionStore();
     const [theme, setTheme] = useState<string>('classic');
+    const socketInitialized = useRef(false);
 
-    const checkVoteStatus = async () => {
+    const checkVoteStatus = useCallback(async () => {
         if (!voterId || !sessionId) {
             setState('waiting');
             return;
         }
 
         try {
-            // Get current session agendas to find active one
             const sessionResponse = await api.getSessionAgendas(sessionId);
             const agendas = sessionResponse.agendas || [];
 
-            // Find active agenda: Voting > Submitted > Announced > Ended (Newest first)
             let activeAgenda = agendas.find((a: any) => a.stage === 'voting');
             console.log('[VotePage] Agendas found:', agendas.length, 'Active voting agenda:', activeAgenda?.title);
 
@@ -45,7 +44,6 @@ export default function VotePage() {
                 activeAgenda = agendas.find((a: any) => a.stage === 'submitted');
             }
 
-            // If no voting or submitted, check for announced or ended (latest one)
             if (!activeAgenda) {
                 const reversedAgendas = [...agendas].reverse();
                 activeAgenda = reversedAgendas.find((a: any) => a.stage === 'announced' || a.stage === 'ended');
@@ -54,26 +52,17 @@ export default function VotePage() {
             if (activeAgenda) {
                 setCurrentAgenda(activeAgenda);
 
-                // Check if user has already voted on this agenda
                 let hasVoted = false;
                 try {
                     const voteResponse = await api.checkVoted(voterId, activeAgenda.id);
                     hasVoted = voteResponse.hasVoted;
                 } catch (e) {
-                    // unexpected error or 404
                     console.error("Failed to check vote status", e);
                 }
 
                 if (activeAgenda.stage === 'voting') {
-                    if (hasVoted) {
-                        setState('completed');
-                    } else {
-                        setState('voting');
-                    }
-                } else if (activeAgenda.stage === 'submitted') {
-                    setState('waiting');
-                } else if (activeAgenda.stage === 'announced' || activeAgenda.stage === 'ended') {
-                    // For announced/ended, show waiting screen (as per user request)
+                    setState(hasVoted ? 'completed' : 'voting');
+                } else {
                     setState('waiting');
                 }
             } else {
@@ -84,7 +73,7 @@ export default function VotePage() {
             console.error('[VotePage] Failed to check vote status:', error);
             setState('waiting');
         }
-    };
+    }, [voterId, sessionId, setCurrentAgenda]);
 
     const validateToken = async () => {
         try {
@@ -103,9 +92,7 @@ export default function VotePage() {
                 return;
             }
 
-            // Check if already authenticated
             if (isAuthenticated && voterId) {
-                // Check vote status
                 checkVoteStatus();
             } else {
                 setState('auth');
@@ -127,130 +114,117 @@ export default function VotePage() {
     }, [tokenData]);
 
     useEffect(() => {
-        console.log(`[VotePage] Theme changed to: ${theme}`);
         document.documentElement.setAttribute('data-theme', theme);
     }, [theme]);
 
+    // ── Socket connection & event listeners ──
     useEffect(() => {
-        if (isAuthenticated && sessionId) {
-            // Connect to WebSocket
-            const socket = socketService.connect();
+        if (!isAuthenticated || !sessionId) return;
+        if (socketInitialized.current) return;
+        socketInitialized.current = true;
+
+        const socket = socketService.connect();
+
+        // ── Register ALL event listeners BEFORE joining session ──
+        const onConnect = () => {
+            console.log(`[VotePage] Socket connected: ${socketService.getSocket()?.id}`);
+            setIsSocketConnected(true);
+            // Re-join session on reconnect
             socketService.joinSession(sessionId, voterId || undefined, 'voter');
+        };
 
-            // Listeners
-            const onConnect = () => {
-                console.log(`[VotePage] Socket connected: ${socketService.getSocket()?.id}`);
-                setIsSocketConnected(true);
+        const onDisconnect = (reason: string) => {
+            console.log('[VotePage] Socket disconnected:', reason);
+            setIsSocketConnected(false);
+        };
+
+        const onStageChanged = ({ agendaId, stage }: { agendaId: string; stage: string }) => {
+            console.log(`[VotePage] stage:changed received: ${stage} for ${agendaId}`);
+
+            if (stage === 'voting') {
+                toast.success('투표가 시작되었습니다!');
+                setState('voting');
                 checkVoteStatus();
-            };
-
-            const onDisconnect = () => {
-                console.log('[VotePage] Socket disconnected');
-                setIsSocketConnected(false);
-            };
-
-            socketService.on('connect', onConnect);
-            socketService.on('disconnect', onDisconnect);
-
-            // Manual check in case already connected
-            if (socket.connected) {
-                setIsSocketConnected(true);
+            } else if (stage === 'submitted') {
+                setState('waiting');
+                checkVoteStatus();
+            } else if (stage === 'ended' || stage === 'announced') {
+                setState(prev => prev === 'voting' ? 'completed' : 'waiting');
+                checkVoteStatus();
             }
+        };
 
-            socketService.on('stage:changed', ({ agendaId, stage }) => {
-                console.log(`[VotePage] stage:changed received: ${stage} for ${agendaId}`);
+        const onVoteEnded = ({ agendaId }: { agendaId: string }) => {
+            console.log(`[VotePage] vote:ended received for ${agendaId}`);
+            setState('completed');
+        };
 
-                if (stage === 'voting') {
-                    // Start voting
-                    toast.success('투표가 시작되었습니다!');
-                    setState('voting');
-                    checkVoteStatus();
-                } else if (stage === 'submitted') {
-                    // Show new agenda in waiting room
-                    setState('waiting');
-                    if (agendaId) {
-                        checkVoteStatus();
-                    }
-                } else if (stage === 'ended' || stage === 'announced') {
-                    // Voting has finished or results are out
-                    // If we were voting, move to completed
-                    setState(prev => prev === 'voting' ? 'completed' : 'waiting');
+        const onVoteConfirmed = ({ vote }: { vote: any }) => {
+            console.log('[VotePage] vote:confirmed received');
+            setState('completed');
+            toast.success('투표가 완료되었습니다!');
+        };
 
-                    if (agendaId) {
-                        checkVoteStatus();
-                    }
-                }
+        const onAuthRequired = () => {
+            console.warn('[VotePage] auth:required received');
+            toast.error('재인증이 필요합니다');
+            setState('auth');
+        };
+
+        const onSettingsUpdate = (settings: any) => {
+            console.log('[VotePage] session:settings:update received:', settings);
+            setTokenData((prev: any) => {
+                if (!prev || !prev.session) return prev;
+                return { ...prev, session: { ...prev.session, ...settings } };
             });
-
-            socketService.on('vote:ended', ({ agendaId }) => {
-                console.log(`[VotePage] vote:ended received for ${agendaId}`);
-                setState('completed');
-            });
-
-            socketService.on('vote:confirmed', ({ vote }) => {
-                console.log('[VotePage] vote:confirmed received');
-                setState('completed');
-                toast.success('투표가 완료되었습니다!');
-            });
-
-            socketService.on('auth:required', () => {
-                console.warn('[VotePage] auth:required received');
-                toast.error('재인증이 필요합니다');
-                setState('auth');
-            });
-
-            socketService.on('session:settings:update', (settings) => {
-                console.log('[VotePage] session:settings:update received:', settings);
-
-                // Update local session data with new settings
-                setTokenData((prev: any) => {
-                    if (!prev || !prev.session) return prev;
-                    return {
-                        ...prev,
-                        session: {
-                            ...prev.session,
-                            ...settings
-                        }
-                    };
-                });
-
-                if (settings.voterTheme) {
-                    console.log(`[VotePage] Applying new theme: ${settings.voterTheme}`);
-                    setTheme(settings.voterTheme);
-                }
-            });
-
-            // If we are already connected but not in the session (e.g. navigation), join now
-            if (socket.connected) {
-                socketService.joinSession(sessionId, voterId || undefined, 'voter');
+            if (settings.voterTheme) {
+                setTheme(settings.voterTheme);
             }
+        };
 
-            return () => {
-                socketService.off('connect', onConnect);
-                socketService.off('disconnect', onDisconnect);
-                socketService.off('stage:changed');
-                socketService.off('vote:ended');
-                socketService.off('vote:confirmed');
-                socketService.off('auth:required');
-            };
+        // Register listeners on the raw socket to ensure they fire
+        socket.on('connect', onConnect);
+        socket.on('disconnect', onDisconnect);
+        socket.on('stage:changed', onStageChanged);
+        socket.on('vote:ended', onVoteEnded);
+        socket.on('vote:confirmed', onVoteConfirmed);
+        socket.on('auth:required', onAuthRequired);
+        socket.on('session:settings:update', onSettingsUpdate);
+
+        // ── Now join the session ──
+        if (socket.connected) {
+            setIsSocketConnected(true);
+            socketService.joinSession(sessionId, voterId || undefined, 'voter');
+            // Immediately check status since we're already connected
+            checkVoteStatus();
         }
-    }, [isAuthenticated, sessionId, voterId]);
+
+        return () => {
+            socket.off('connect', onConnect);
+            socket.off('disconnect', onDisconnect);
+            socket.off('stage:changed', onStageChanged);
+            socket.off('vote:ended', onVoteEnded);
+            socket.off('vote:confirmed', onVoteConfirmed);
+            socket.off('auth:required', onAuthRequired);
+            socket.off('session:settings:update', onSettingsUpdate);
+            socketInitialized.current = false;
+        };
+    }, [isAuthenticated, sessionId, voterId, checkVoteStatus]);
 
     const handleAuthSuccess = () => {
-        checkVoteStatus(); // Check status after auth
+        checkVoteStatus();
         toast.success('인증이 완료되었습니다!');
     };
 
     return (
         <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4 transition-colors duration-500" data-theme={theme}>
-            {/* Ambient Background Gradient for modern look */}
             <div className="fixed inset-0 bg-gradient-to-br from-primary/10 via-background to-secondary/10 -z-10" />
 
-            {/* Socket Status Indicator (Debug) */}
-            <div className="fixed top-4 right-4 z-50 flex items-center gap-2 px-3 py-1 bg-black/20 backdrop-blur-md rounded-full border border-white/10 text-[10px] font-medium transition-all">
+            {/* Socket Status Indicator */}
+            <div className="fixed top-2 right-2 z-50 flex items-center gap-1.5 px-2 py-0.5 bg-black/20 backdrop-blur-md rounded-full border border-white/10 text-[9px] font-medium">
                 <div className={`w-1.5 h-1.5 rounded-full ${isSocketConnected ? 'bg-success animate-pulse' : 'bg-red-500'}`} />
                 <span className={isSocketConnected ? 'text-success/80' : 'text-red-500/80'}>
-                    {isSocketConnected ? 'Live' : 'Disconnected'}
+                    {isSocketConnected ? 'Live' : 'Offline'}
                 </span>
             </div>
 

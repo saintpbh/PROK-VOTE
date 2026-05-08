@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Card from '../ui/Card';
@@ -19,7 +19,7 @@ export default function AgendaList({ sessionId, onAgendaSelect }: { sessionId: s
         title: string;
         description: string;
         isImportant: boolean;
-        type: 'PROS_CONS' | 'MULTIPLE_CHOICE' | 'INPUT';
+        type: 'PROS_CONS' | 'MULTIPLE_CHOICE' | 'MULTIPLE_CHOICE_MULTI' | 'INPUT';
         options: string[];
     }>({
         title: '',
@@ -30,6 +30,11 @@ export default function AgendaList({ sessionId, onAgendaSelect }: { sessionId: s
     });
 
     const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+    const [showVoteLogModal, setShowVoteLogModal] = useState(false);
+    const [voteLogAgendaId, setVoteLogAgendaId] = useState<string | null>(null);
+    const [voteLogs, setVoteLogs] = useState<any[]>([]);
+    const [logStatus, setLogStatus] = useState<'active' | 'archived' | 'trashed'>('active');
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (sessionId) {
@@ -84,7 +89,7 @@ export default function AgendaList({ sessionId, onAgendaSelect }: { sessionId: s
             return;
         }
 
-        if (formData.type === 'MULTIPLE_CHOICE') {
+        if (formData.type === 'MULTIPLE_CHOICE' || formData.type === 'MULTIPLE_CHOICE_MULTI') {
             const validOptions = formData.options.filter(opt => opt.trim());
             if (validOptions.length < 2) {
                 toast.error('다지선다 투표는 최소 2개의 옵션이 필요합니다');
@@ -101,7 +106,7 @@ export default function AgendaList({ sessionId, onAgendaSelect }: { sessionId: s
                 displayOrder: agendas.length,
                 isImportant: formData.isImportant,
                 type: formData.type,
-                options: formData.type === 'MULTIPLE_CHOICE' ? formData.options.filter(opt => opt.trim()) : undefined,
+                options: (formData.type === 'MULTIPLE_CHOICE' || formData.type === 'MULTIPLE_CHOICE_MULTI') ? formData.options.filter(opt => opt.trim()) : undefined,
             });
 
             toast.success('안건이 추가되었습니다');
@@ -143,13 +148,135 @@ export default function AgendaList({ sessionId, onAgendaSelect }: { sessionId: s
         return colors[stage] || colors.pending;
     };
 
+    // ─── Excel Import/Export ───
+
+    const downloadExcelTemplate = () => {
+        const headers = ['제목,설명,유형(PROS_CONS/MULTIPLE_CHOICE/MULTIPLE_CHOICE_MULTI/INPUT),"옵션(콤마구분)",중요안건(Y/N)'];
+        const example = ['제1호 안건 승인,안건 설명입니다,PROS_CONS,,Y'];
+        const example2 = ['대표이사 선출,후보 중 선택,MULTIPLE_CHOICE,"김철수,이영희,박민수",N'];
+        const example3 = ['복수선택 안건,복수 선택 가능,MULTIPLE_CHOICE_MULTI,"옵션A,옵션B,옵션C,옵션D",N'];
+        const csv = [headers, example, example2, example3].join('\n');
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'agenda_template.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    // CSV 행을 따옴표 인식하여 열 분리
+    const parseCSVLine = (line: string): string[] => {
+        const cols: string[] = [];
+        let current = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (ch === '"') {
+                inQuotes = !inQuotes;
+            } else if (ch === ',' && !inQuotes) {
+                cols.push(current.trim());
+                current = '';
+            } else {
+                current += ch;
+            }
+        }
+        cols.push(current.trim());
+        return cols;
+    };
+
+    const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        try {
+            const text = await file.text();
+            const lines = text.split('\n').filter(l => l.trim());
+            if (lines.length < 2) {
+                toast.error('유효한 데이터가 없습니다');
+                return;
+            }
+
+            const agendas = lines.slice(1).map(line => {
+                const cols = parseCSVLine(line);
+                return {
+                    title: cols[0] || '',
+                    description: cols[1] || '',
+                    type: cols[2] || 'PROS_CONS',
+                    options: cols[3] ? cols[3].split(',').map(o => o.trim()).filter(Boolean) : undefined,
+                    isImportant: cols[4]?.toUpperCase() === 'Y',
+                };
+            }).filter(a => a.title);
+
+            if (agendas.length === 0) {
+                toast.error('가져올 안건이 없습니다');
+                return;
+            }
+
+            const result = await api.importAgendas(sessionId, agendas);
+            toast.success(`${result.imported}건 가져오기 성공${result.failed > 0 ? `, ${result.failed}건 실패` : ''}`);
+            fetchAgendas();
+        } catch (error: any) {
+            toast.error(error.message || '엑셀 가져오기 실패');
+        }
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    // ─── Vote Logs ───
+
+    const openVoteLogs = async (agendaId: string) => {
+        setVoteLogAgendaId(agendaId);
+        setLogStatus('active');
+        try {
+            const res = await api.getVoteLogs(agendaId, 'active');
+            setVoteLogs(res.logs || []);
+        } catch { toast.error('투표 로그 조회 실패'); }
+        setShowVoteLogModal(true);
+    };
+
+    const refreshLogs = async () => {
+        if (!voteLogAgendaId) return;
+        try {
+            const res = await api.getVoteLogs(voteLogAgendaId, logStatus);
+            setVoteLogs(res.logs || []);
+        } catch { toast.error('투표 로그 조회 실패'); }
+    };
+
+    const handleExportLogs = async () => {
+        if (!voteLogAgendaId) return;
+        try {
+            const blob = await api.exportVoteLogs(voteLogAgendaId);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `vote_log_${voteLogAgendaId}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch { toast.error('로그 내보내기 실패'); }
+    };
+
     return (
         <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
                 <h2 className="text-2xl font-bold">안건 목록</h2>
-                <Button onClick={() => setShowCreateModal(true)} disabled={!sessionId}>
-                    + 안건 추가
-                </Button>
+                <div className="flex gap-2 flex-wrap">
+                    <Button size="sm" variant="secondary" onClick={downloadExcelTemplate}>
+                        📥 포맷 다운로드
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => fileInputRef.current?.click()}>
+                        📤 엑셀 업로드
+                    </Button>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".csv,.xlsx,.xls"
+                        className="hidden"
+                        onChange={handleExcelUpload}
+                    />
+                    <Button onClick={() => setShowCreateModal(true)} disabled={!sessionId}>
+                        + 안건 추가
+                    </Button>
+                </div>
             </div>
 
             <div className="space-y-3">
@@ -229,16 +356,28 @@ export default function AgendaList({ sessionId, onAgendaSelect }: { sessionId: s
                                 )}
                             </div>
 
-                            <Button
-                                variant="danger"
-                                size="sm"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setDeleteTargetId(agenda.id);
-                                }}
-                            >
-                                삭제
-                            </Button>
+                            <div className="flex flex-col gap-1">
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        openVoteLogs(agenda.id);
+                                    }}
+                                >
+                                    📝 로그
+                                </Button>
+                                <Button
+                                    variant="danger"
+                                    size="sm"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setDeleteTargetId(agenda.id);
+                                    }}
+                                >
+                                    삭제
+                                </Button>
+                            </div>
                         </div>
                     </Card>
                 ))}
@@ -292,10 +431,11 @@ export default function AgendaList({ sessionId, onAgendaSelect }: { sessionId: s
                         <label className="text-sm font-medium text-foreground mb-2 block">
                             투표 방식
                         </label>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 gap-2">
                             {[
                                 { id: 'PROS_CONS', label: '찬성/반대' },
-                                { id: 'MULTIPLE_CHOICE', label: '다지선다' },
+                                { id: 'MULTIPLE_CHOICE', label: '다지선다(1개)' },
+                                { id: 'MULTIPLE_CHOICE_MULTI', label: '다지선다(복수)' },
                                 { id: 'INPUT', label: '입력(주관식)' },
                             ].map((type) => (
                                 <div
@@ -312,10 +452,13 @@ export default function AgendaList({ sessionId, onAgendaSelect }: { sessionId: s
                         </div>
                     </div>
 
-                    {formData.type === 'MULTIPLE_CHOICE' && (
+                    {(formData.type === 'MULTIPLE_CHOICE' || formData.type === 'MULTIPLE_CHOICE_MULTI') && (
                         <div className="space-y-2 p-4 bg-muted/30 rounded-lg">
                             <label className="text-sm font-medium text-foreground block">
                                 투표 옵션 설정 (최소 2개)
+                                {formData.type === 'MULTIPLE_CHOICE_MULTI' && (
+                                    <span className="text-xs text-secondary ml-2">(복수선택 가능)</span>
+                                )}
                             </label>
                             {formData.options.map((option, index) => (
                                 <div key={index} className="flex gap-2">
@@ -413,6 +556,79 @@ export default function AgendaList({ sessionId, onAgendaSelect }: { sessionId: s
                             삭제
                         </Button>
                     </div>
+                </div>
+            </Modal>
+
+            {/* Vote Log Modal */}
+            <Modal
+                isOpen={showVoteLogModal}
+                onClose={() => setShowVoteLogModal(false)}
+                title="투표 로그"
+                size="lg"
+            >
+                <div className="space-y-4">
+                    <div className="flex gap-2 flex-wrap">
+                        {(['active', 'archived', 'trashed'] as const).map(s => (
+                            <Button
+                                key={s}
+                                size="sm"
+                                variant={logStatus === s ? 'primary' : 'ghost'}
+                                onClick={() => { setLogStatus(s); setTimeout(refreshLogs, 100); }}
+                            >
+                                {s === 'active' ? '활성' : s === 'archived' ? '보관' : '휴지통'}
+                            </Button>
+                        ))}
+                        <div className="flex-1" />
+                        <Button size="sm" variant="secondary" onClick={handleExportLogs}>📥 CSV 내보내기</Button>
+                        {logStatus === 'active' && voteLogAgendaId && (
+                            <Button size="sm" variant="secondary" onClick={async () => {
+                                await api.archiveVoteLogs(voteLogAgendaId);
+                                toast.success('보관 완료');
+                                refreshLogs();
+                            }}>📦 보관으로 이동</Button>
+                        )}
+                        {logStatus === 'active' && voteLogAgendaId && (
+                            <Button size="sm" variant="danger" onClick={async () => {
+                                await api.trashVoteLogs(voteLogAgendaId);
+                                toast.success('휴지통으로 이동 (3개월 후 자동 삭제)');
+                                refreshLogs();
+                            }}>🗑️ 휴지통</Button>
+                        )}
+                        {logStatus === 'trashed' && voteLogAgendaId && (
+                            <Button size="sm" variant="secondary" onClick={async () => {
+                                await api.restoreVoteLogs(voteLogAgendaId);
+                                toast.success('복원 완료');
+                                refreshLogs();
+                            }}>♻️ 복원</Button>
+                        )}
+                    </div>
+
+                    {voteLogs.length === 0 ? (
+                        <p className="text-center text-muted-foreground py-8">로그가 없습니다</p>
+                    ) : (
+                        <div className="max-h-96 overflow-y-auto border border-border/30 rounded-md">
+                            <table className="w-full text-sm">
+                                <thead className="bg-muted/50 sticky top-0">
+                                    <tr>
+                                        <th className="text-left p-2">안건명</th>
+                                        <th className="text-left p-2">투표시간</th>
+                                        <th className="text-left p-2">브라우저ID</th>
+                                        <th className="text-left p-2">선택내용</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {voteLogs.map((log: any) => (
+                                        <tr key={log.id} className="border-t border-border/20">
+                                            <td className="p-2">{log.agendaTitle}</td>
+                                            <td className="p-2 text-muted-foreground">{new Date(log.votedAt).toLocaleString('ko-KR')}</td>
+                                            <td className="p-2 font-mono text-xs text-muted-foreground">{log.voterBrowserId}</td>
+                                            <td className="p-2 font-semibold">{log.choice}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
             </Modal>
         </div>

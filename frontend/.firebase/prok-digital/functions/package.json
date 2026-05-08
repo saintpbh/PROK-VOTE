@@ -1,0 +1,29 @@
+{
+  "name": "prok-vote-frontend",
+  "version": "1.0.0",
+  "description": "Real-time on-site electronic voting system - Frontend PWA",
+  "dependencies": {
+    "next": "^14.1.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "socket.io-client": "^4.6.1",
+    "@fingerprintjs/fingerprintjs": "^4.2.0",
+    "jspdf": "^2.5.1",
+    "qrcode": "^1.5.3",
+    "recharts": "^2.11.0",
+    "react-spring": "^9.7.3",
+    "next-pwa": "^5.6.0",
+    "zustand": "^4.5.0",
+    "axios": "^1.6.5",
+    "date-fns": "^3.2.0",
+    "clsx": "^2.1.0",
+    "react-hot-toast": "^2.4.1",
+    "firebase-frameworks": "^0.11.0",
+    "firebase-functions": "^6.0.1",
+    "firebase-admin": "^11.11.1"
+  },
+  "main": "server.js",
+  "engines": {
+    "node": "24"
+  }
+}

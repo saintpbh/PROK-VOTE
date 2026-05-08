@@ -17,6 +17,8 @@ export default function SessionManager() {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showThemeModal, setShowThemeModal] = useState(false);
     const [showSmsModal, setShowSmsModal] = useState(false);
+    const [showParticipantsList, setShowParticipantsList] = useState(false);
+    const [participantsList, setParticipantsList] = useState<any[]>([]);
     const { currentSession, setCurrentSession } = useSessionStore();
 
     // Form state
@@ -288,18 +290,55 @@ export default function SessionManager() {
                             </div>
 
                             {/* Participant Management */}
-                            <div className="flex items-center gap-4 bg-background/50 p-2 rounded-lg border border-border/50">
-                                <div className="text-sm">
-                                    <span className="text-muted-foreground mr-2">현재 참여자:</span>
-                                    <span className="font-bold text-lg">{participantCount}명</span>
+                            <div className="bg-background/50 p-3 rounded-lg border border-border/50 space-y-2">
+                                <div className="flex items-center gap-4">
+                                    <div className="text-sm">
+                                        <span className="text-muted-foreground mr-2">현재 참여자:</span>
+                                        <span className="font-bold text-lg">{participantCount}명</span>
+                                    </div>
+                                    <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        onClick={async () => {
+                                            try {
+                                                const res = await api.getParticipants(currentSession.id);
+                                                setParticipantsList(res.participants || []);
+                                                setShowParticipantsList(!showParticipantsList);
+                                            } catch { toast.error('참여자 목록 조회 실패'); }
+                                        }}
+                                    >
+                                        {showParticipantsList ? '목록 닫기' : '목록 보기'}
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="danger"
+                                        onClick={() => setShowResetParticipantsModal(true)}
+                                    >
+                                        참여자 전체 리셋
+                                    </Button>
                                 </div>
-                                <Button
-                                    size="sm"
-                                    variant="danger"
-                                    onClick={() => setShowResetParticipantsModal(true)}
-                                >
-                                    참여자 전체 리셋
-                                </Button>
+                                {showParticipantsList && participantsList.length > 0 && (
+                                    <div className="max-h-48 overflow-y-auto border border-border/30 rounded-md">
+                                        <table className="w-full text-xs">
+                                            <thead className="bg-muted/50 sticky top-0">
+                                                <tr>
+                                                    <th className="text-left p-2">이름</th>
+                                                    <th className="text-left p-2">인증시간</th>
+                                                    <th className="text-left p-2">기기</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {participantsList.map((p: any) => (
+                                                    <tr key={p.id} className="border-t border-border/20">
+                                                        <td className="p-2">{p.name}</td>
+                                                        <td className="p-2 text-muted-foreground">{p.verifiedAt ? new Date(p.verifiedAt).toLocaleTimeString('ko-KR') : '-'}</td>
+                                                        <td className="p-2 font-mono text-muted-foreground">{p.deviceFingerprint}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

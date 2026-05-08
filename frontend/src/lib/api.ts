@@ -2,20 +2,11 @@ import axios, { AxiosInstance, AxiosError } from 'axios';
 
 let API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
-if (typeof window !== 'undefined') {
-    // Override localhost if accessed from a local network IP
-    if (API_BASE_URL && API_BASE_URL.includes('localhost') && window.location.hostname !== 'localhost') {
-        API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:3001`;
-    }
+if (!API_BASE_URL) {
+    API_BASE_URL = 'http://localhost:3001';
 }
 
-if (!API_BASE_URL) {
-    if (typeof window !== 'undefined') {
-        API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:3001`;
-    } else {
-        API_BASE_URL = 'http://localhost:3001';
-    }
-} else if (!API_BASE_URL.startsWith('http') && typeof window !== 'undefined') {
+if (API_BASE_URL && !API_BASE_URL.startsWith('http') && typeof window !== 'undefined') {
     API_BASE_URL = `https://${API_BASE_URL}`;
 }
 
@@ -23,7 +14,9 @@ class ApiClient {
     private client: AxiosInstance;
 
     constructor() {
-        console.log('[API] Initializing with base URL:', API_BASE_URL);
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('[API] Base URL:', API_BASE_URL);
+        }
         this.client = axios.create({
             baseURL: API_BASE_URL,
             timeout: 15000,
@@ -212,7 +205,7 @@ class ApiClient {
         description?: string;
         displayOrder?: number;
         isImportant?: boolean;
-        type?: 'PROS_CONS' | 'MULTIPLE_CHOICE' | 'INPUT';
+        type?: 'PROS_CONS' | 'MULTIPLE_CHOICE' | 'MULTIPLE_CHOICE_MULTI' | 'INPUT';
         options?: string[];
     }): Promise<any> {
         return this.client.post('/sessions/agendas', data);
@@ -319,6 +312,62 @@ class ApiClient {
 
     async exportAuditLogs(params: any): Promise<any> {
         return this.client.get('/audit/export', { params, responseType: 'text' });
+    }
+
+    // ─── Participants ───
+
+    async getParticipants(sessionId: string): Promise<any> {
+        return this.client.get(`/sessions/${sessionId}/participants`);
+    }
+
+    // ─── Agenda Import ───
+
+    async importAgendas(sessionId: string, agendas: Array<{
+        title: string;
+        description?: string;
+        type: string;
+        options?: string[];
+        isImportant?: boolean;
+    }>): Promise<any> {
+        return this.client.post(`/sessions/${sessionId}/agendas/import`, { agendas });
+    }
+
+    // ─── Vote Logs ───
+
+    async getVoteLogs(agendaId: string, status: string = 'active'): Promise<any> {
+        return this.client.get(`/sessions/agendas/${agendaId}/logs`, { params: { status } });
+    }
+
+    async getSessionVoteLogs(sessionId: string, status: string = 'active'): Promise<any> {
+        return this.client.get(`/sessions/${sessionId}/vote-logs`, { params: { status } });
+    }
+
+    async archiveVoteLogs(agendaId: string): Promise<any> {
+        return this.client.post(`/sessions/agendas/${agendaId}/logs/archive`);
+    }
+
+    async trashVoteLogs(agendaId: string): Promise<any> {
+        return this.client.post(`/sessions/agendas/${agendaId}/logs/trash`);
+    }
+
+    async restoreVoteLogs(agendaId: string): Promise<any> {
+        return this.client.post(`/sessions/agendas/${agendaId}/logs/restore`);
+    }
+
+    async exportVoteLogs(agendaId: string): Promise<any> {
+        return this.client.get(`/sessions/agendas/${agendaId}/logs/export`, {
+            responseType: 'blob',
+        });
+    }
+
+    // ─── Infra Scaling ───
+
+    async getInfraPreset(): Promise<any> {
+        return this.client.get('/settings/infra');
+    }
+
+    async updateInfraPreset(preset: 'standby' | 'small' | 'medium' | 'max'): Promise<any> {
+        return this.client.post('/settings/infra', { preset });
     }
 }
 

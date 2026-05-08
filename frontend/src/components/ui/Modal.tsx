@@ -60,7 +60,7 @@ export default function Modal({
         >
             <div
                 className={clsx(
-                    'card w-full animate-slide-in-bottom',
+                    'card w-full animate-slide-in-bottom max-h-[90vh] overflow-hidden',
                     sizes[size]
                 )}
                 onClick={(e) => e.stopPropagation()}

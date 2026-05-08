@@ -248,6 +248,19 @@ export class VotingGateway implements OnGatewayConnection, OnGatewayDisconnect {
                 } as any
             });
 
+            // Create granular vote log for per-agenda audit trail
+            const agendaForLog = await this.sessionService.getAgendaWithSession(data.agendaId);
+            if (agendaForLog) {
+                await this.sessionService.createVoteLog({
+                    sessionId: agendaForLog.sessionId,
+                    agendaId: data.agendaId,
+                    agendaTitle: agendaForLog.title,
+                    voterBrowserId: client.handshake?.auth?.deviceFingerprint || client.id,
+                    voterName: (client as any).user?.voterName || undefined,
+                    choice: data.choice,
+                });
+            }
+
             // Get updated statistics
             const stats = await this.votingService.getAgendaStatistics(data.agendaId);
 

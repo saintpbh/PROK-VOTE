@@ -6,14 +6,6 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
-# Development image
-FROM base AS dev
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-EXPOSE 3001
-CMD ["npm", "run", "start:dev"]
-
 # Build image
 FROM base AS builder
 WORKDIR /app
@@ -37,5 +29,9 @@ COPY --chown=nestjs:nodejs package*.json ./
 RUN mkdir -p uploads && chown nestjs:nodejs uploads
 
 USER nestjs
-EXPOSE 3001
+
+# Cloud Run injects PORT env var (default 8080)
+ENV PORT=8080
+EXPOSE 8080
+
 CMD ["node", "dist/main"]

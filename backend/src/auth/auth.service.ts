@@ -228,7 +228,8 @@ export class AuthService {
     }
 
     private verifyAccessCode(session: Session, accessCode: string) {
-        if (accessCode !== session.accessCode) {
+        // CHAR(4) column may include trailing spaces — trim both sides for safe comparison
+        if (accessCode.trim() !== session.accessCode.trim()) {
             throw new UnauthorizedException('Invalid access code');
         }
 

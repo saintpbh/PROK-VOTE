@@ -12,7 +12,7 @@ import { Session } from './session.entity';
 import { Vote } from './vote.entity';
 
 export type AgendaStage = 'pending' | 'submitted' | 'voting' | 'ended' | 'announced';
-export type AgendaType = 'PROS_CONS' | 'MULTIPLE_CHOICE' | 'INPUT';
+export type AgendaType = 'PROS_CONS' | 'MULTIPLE_CHOICE' | 'MULTIPLE_CHOICE_MULTI' | 'INPUT';
 
 @Entity('agendas')
 export class Agenda {

@@ -40,29 +40,34 @@ export default function ConfirmationModal({
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} size="md" closeOnBackdrop={false}>
-            <div className="text-center space-y-6 py-4">
-                <div className="text-8xl mb-4">{getChoiceIcon(choice)}</div>
+            {/* Full-height flex container: content scrolls, buttons fixed at bottom */}
+            <div className="flex flex-col h-full max-h-[80vh]">
+                {/* Scrollable content area */}
+                <div className="flex-1 overflow-y-auto text-center space-y-4 py-3 px-1">
+                    <div className="text-5xl sm:text-6xl mb-2">{getChoiceIcon(choice)}</div>
 
-                <h2 className="text-2xl font-bold">투표 확인</h2>
+                    <h2 className="text-xl font-bold">투표 확인</h2>
 
-                <div className="p-8 bg-muted/30 rounded-2xl">
-                    <p className="text-muted-foreground mb-3">선택하신 의견은</p>
-                    <p className={`text-8xl font-bold ${getChoiceColor(choice)}`}>
-                        {choice}
+                    <div className="p-5 bg-muted/30 rounded-2xl">
+                        <p className="text-muted-foreground mb-2 text-sm">선택하신 의견은</p>
+                        <p className={`text-4xl sm:text-5xl font-bold ${getChoiceColor(choice)}`}>
+                            {choice}
+                        </p>
+                    </div>
+
+                    <p className="text-muted-foreground text-sm">
+                        정말 이 의견으로 투표하시겠습니까?
                     </p>
+
+                    <div className="p-3 bg-danger/10 rounded-lg border border-danger/30">
+                        <p className="text-xs text-danger">
+                            ⚠️ 한 번 투표하면 변경할 수 없습니다
+                        </p>
+                    </div>
                 </div>
 
-                <p className="text-muted-foreground">
-                    정말 이 의견으로 투표하시겠습니까?
-                </p>
-
-                <div className="p-4 bg-danger/10 rounded-lg border border-danger/30">
-                    <p className="text-sm text-danger">
-                        ⚠️ 한 번 투표하면 변경할 수 없습니다
-                    </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 pt-4">
+                {/* Fixed bottom buttons — always visible */}
+                <div className="flex-shrink-0 grid grid-cols-2 gap-3 pt-3 pb-1 border-t border-border/30 bg-card sticky bottom-0">
                     <Button variant="ghost" onClick={onClose} disabled={loading} fullWidth size="lg">
                         취소
                     </Button>

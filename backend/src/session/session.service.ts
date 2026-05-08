@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, Not } from 'typeorm';
-import { Session, Agenda, Voter, Token } from '../entities';
+import { Session, Agenda, Voter, Token, VoteLog } from '../entities';
 import { FingerprintService } from '../auth/fingerprint.service';
 import { CreateSessionDto, CreateAgendaDto } from './dto/session.dto';
 import { VotingGateway } from '../voting/voting.gateway';
@@ -30,6 +30,8 @@ export class SessionService {
         private smsService: SmsService,
         @InjectRepository(Voter)
         private voterRepository: Repository<Voter>,
+        @InjectRepository(VoteLog)
+        private voteLogRepository: Repository<VoteLog>,
         private auditService: AuditService,
     ) { }
 
@@ -174,6 +176,12 @@ export class SessionService {
             if (session.ownerId !== user.userId) {
                 throw new ForbiddenException('Access denied to this agenda');
             }
+        }
+
+        // Block resuming a vote that has already ended or been announced
+        // Integrity rule: once ended, must re-create a new agenda to vote again
+        if (stage === 'voting' && (agenda.stage === 'ended' || agenda.stage === 'announced')) {
+            throw new ForbiddenException('종료된 투표를 재개할 수 없습니다. 새 안건을 상정해주세요.');
         }
 
         const oldStage = agenda.stage;
@@ -457,5 +465,172 @@ export class SessionService {
         }
 
         return { sent, failed };
+    }
+
+    /**
+     * Get authenticated participants for a session
+     */
+    async getParticipants(sessionId: string, user?: any): Promise<any[]> {
+        await this.getSessionWithAgendas(sessionId, user);
+        const voters = await this.voterRepository.find({
+            where: { sessionId },
+            order: { verifiedAt: 'DESC' },
+        });
+        return voters.map(v => ({
+            id: v.id,
+            name: v.name || '익명',
+            verifiedAt: v.verifiedAt,
+            deviceFingerprint: v.deviceFingerprint?.substring(0, 8) + '...',
+        }));
+    }
+
+    /**
+     * Import agendas from parsed Excel data
+     */
+    async importAgendas(
+        sessionId: string,
+        agendas: Array<{
+            title: string;
+            description?: string;
+            type: string;
+            options?: string[];
+            isImportant?: boolean;
+        }>,
+        user: any,
+    ): Promise<{ imported: number; failed: number }> {
+        await this.getSessionWithAgendas(sessionId, user);
+        const existingCount = await this.agendaRepository.count({ where: { sessionId } });
+
+        let imported = 0;
+        let failed = 0;
+
+        for (let i = 0; i < agendas.length; i++) {
+            try {
+                const data = agendas[i];
+                const validTypes = ['PROS_CONS', 'MULTIPLE_CHOICE', 'MULTIPLE_CHOICE_MULTI', 'INPUT'];
+                const type = validTypes.includes(data.type) ? data.type : 'PROS_CONS';
+
+                const agenda = this.agendaRepository.create({
+                    sessionId,
+                    title: data.title,
+                    description: data.description || '',
+                    type: type as any,
+                    options: data.options || null,
+                    isImportant: data.isImportant || false,
+                    displayOrder: existingCount + i,
+                });
+                await this.agendaRepository.save(agenda);
+                imported++;
+            } catch (error) {
+                this.logger.error(`Failed to import agenda: ${agendas[i]?.title}`, error);
+                failed++;
+            }
+        }
+
+        return { imported, failed };
+    }
+
+    // ─── Vote Log Methods ───
+
+    /**
+     * Create a vote log entry
+     */
+    async createVoteLog(data: {
+        sessionId: string;
+        agendaId: string;
+        agendaTitle: string;
+        voterBrowserId?: string;
+        voterName?: string;
+        choice: string;
+    }): Promise<VoteLog> {
+        const log = this.voteLogRepository.create(data);
+        return this.voteLogRepository.save(log);
+    }
+
+    /**
+     * Get vote logs for an agenda
+     */
+    async getVoteLogs(agendaId: string, status: 'active' | 'archived' | 'trashed' = 'active'): Promise<VoteLog[]> {
+        return this.voteLogRepository.find({
+            where: { agendaId, status },
+            order: { votedAt: 'DESC' },
+        });
+    }
+
+    /**
+     * Get all vote logs for a session
+     */
+    async getSessionVoteLogs(sessionId: string, status: 'active' | 'archived' | 'trashed' = 'active'): Promise<VoteLog[]> {
+        return this.voteLogRepository.find({
+            where: { sessionId, status },
+            order: { votedAt: 'DESC' },
+        });
+    }
+
+    /**
+     * Archive vote logs for an agenda
+     */
+    async archiveVoteLogs(agendaId: string): Promise<void> {
+        await this.voteLogRepository.update(
+            { agendaId, status: 'active' },
+            { status: 'archived' },
+        );
+    }
+
+    /**
+     * Trash vote logs for an agenda (will be permanently deleted after 3 months)
+     */
+    async trashVoteLogs(agendaId: string): Promise<void> {
+        await this.voteLogRepository.update(
+            { agendaId, status: Not('trashed') as any },
+            { status: 'trashed', trashedAt: new Date() },
+        );
+    }
+
+    /**
+     * Restore trashed vote logs
+     */
+    async restoreVoteLogs(agendaId: string): Promise<void> {
+        await this.voteLogRepository.update(
+            { agendaId, status: 'trashed' },
+            { status: 'active', trashedAt: null },
+        );
+    }
+
+    /**
+     * Permanently delete vote logs that have been trashed for more than 3 months
+     */
+    async purgeOldTrashedLogs(): Promise<number> {
+        const threeMonthsAgo = new Date();
+        threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+
+        const result = await this.voteLogRepository
+            .createQueryBuilder()
+            .delete()
+            .where('status = :status', { status: 'trashed' })
+            .andWhere('trashed_at < :date', { date: threeMonthsAgo })
+            .execute();
+
+        return result.affected || 0;
+    }
+
+    /**
+     * Export vote logs as CSV
+     */
+    async exportVoteLogs(agendaId: string): Promise<string> {
+        const logs = await this.getVoteLogs(agendaId);
+        const headers = ['안건명', '투표시간', '브라우저ID', '투표자명', '선택내용'];
+        const rows = [headers.join(',')];
+
+        for (const log of logs) {
+            rows.push([
+                `"${log.agendaTitle.replace(/"/g, '""')}"`,
+                log.votedAt.toISOString(),
+                log.voterBrowserId || '',
+                log.voterName || '',
+                `"${log.choice.replace(/"/g, '""')}"`,
+            ].join(','));
+        }
+        return rows.join('\n');
     }
 }

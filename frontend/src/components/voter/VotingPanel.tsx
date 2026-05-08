@@ -2,11 +2,9 @@
 
 import { useState } from 'react';
 import Button from '../ui/Button';
-import Card from '../ui/Card';
 import ConfirmationModal from './ConfirmationModal';
 import socketService from '@/lib/socket';
 import { useAuthStore } from '@/store/authStore';
-import { VoteChoice } from '@/store/votingStore';
 import toast from 'react-hot-toast';
 
 interface VotingPanelProps {
@@ -15,7 +13,6 @@ interface VotingPanelProps {
 }
 
 export default function VotingPanel({ agenda, onVoteComplete }: VotingPanelProps) {
-    // Determine initial choice type based on agenda type
     const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
     const [inputText, setInputText] = useState('');
     const [showConfirmation, setShowConfirmation] = useState(false);
@@ -27,8 +24,6 @@ export default function VotingPanel({ agenda, onVoteComplete }: VotingPanelProps
         if (agenda.type !== 'INPUT') {
             setShowConfirmation(true);
         }
-
-        // Haptic feedback
         if (navigator.vibrate) {
             navigator.vibrate(200);
         }
@@ -48,19 +43,15 @@ export default function VotingPanel({ agenda, onVoteComplete }: VotingPanelProps
 
         setLoading(true);
         try {
-            // Emit vote via WebSocket
             socketService.emit('vote:cast', {
                 voterId,
                 agendaId: agenda.id,
                 choice: selectedChoice,
             });
 
-            // Wait for confirmation event (handled in parent component)
-            // The parent will transition to completed state
             setTimeout(() => {
                 onVoteComplete();
             }, 1000);
-
         } catch (error: any) {
             toast.error(error.message || '투표에 실패했습니다');
             setLoading(false);
@@ -86,105 +77,103 @@ export default function VotingPanel({ agenda, onVoteComplete }: VotingPanelProps
     };
 
     return (
-        <div className="w-full max-w-2xl">
-            <Card>
-                <div className="space-y-6">
-                    {/* Agenda Information */}
-                    <div className="text-center space-y-3">
-                        <div className="inline-block px-4 py-1.5 bg-primary/10 text-primary rounded-full text-sm font-semibold animate-pulse-slow border border-primary/20">
-                            투표 진행 중
-                        </div>
-                        <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-                            {agenda.title}
-                        </h1>
-                        {agenda.description && (
-                            <p className="text-muted-foreground text-lg">
-                                {agenda.description}
-                            </p>
-                        )}
-                    </div>
-
-                    {/* Voting Buttons based on Type */}
-                    {(agenda.type === 'PROS_CONS' || !agenda.type) && (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 py-6">
-                            <button
-                                onClick={() => handleChoiceClick('찬성')}
-                                className={`${getChoiceStyle('찬성')} p-8 rounded-2xl shadow-sm border border-black/5 transition-all duration-150 hover:scale-105 active:scale-95 flex flex-col items-center justify-center gap-3`}
-                            >
-                                <span className="text-5xl drop-shadow-sm">{getChoiceIcon('찬성')}</span>
-                                <span className="text-2xl font-bold">찬성</span>
-                            </button>
-
-                            <button
-                                onClick={() => handleChoiceClick('반대')}
-                                className={`${getChoiceStyle('반대')} p-8 rounded-2xl shadow-sm border border-black/5 transition-all duration-150 hover:scale-105 active:scale-95 flex flex-col items-center justify-center gap-3`}
-                            >
-                                <span className="text-5xl drop-shadow-sm">{getChoiceIcon('반대')}</span>
-                                <span className="text-2xl font-bold">반대</span>
-                            </button>
-
-                            <button
-                                onClick={() => handleChoiceClick('기권')}
-                                className={`${getChoiceStyle('기권')} p-8 rounded-2xl shadow-sm border border-black/5 transition-all duration-150 hover:scale-105 active:scale-95 flex flex-col items-center justify-center gap-3`}
-                            >
-                                <span className="text-5xl opacity-80">{getChoiceIcon('기권')}</span>
-                                <span className="text-2xl font-bold">기권</span>
-                            </button>
-                        </div>
-                    )}
-
-                    {agenda.type === 'MULTIPLE_CHOICE' && (
-                        <div className="space-y-3 py-4">
-                            {(agenda.options || []).map((option: string, index: number) => (
-                                <button
-                                    key={index}
-                                    onClick={() => handleChoiceClick(option)}
-                                    className="w-full p-6 text-left bg-card hover:bg-muted/50 border-2 border-border hover:border-primary rounded-xl transition-all duration-200 flex items-center gap-4 group active:scale-98"
-                                >
-                                    <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold group-hover:bg-primary group-hover:text-white transition-colors">
-                                        {index + 1}
-                                    </div>
-                                    <span className="text-xl font-medium">{option}</span>
-                                </button>
-                            ))}
-                        </div>
-                    )}
-
-                    {agenda.type === 'INPUT' && (
-                        <div className="space-y-4 py-6">
-                            <div className="relative">
-                                <textarea
-                                    className="w-full p-4 text-lg border-2 border-border rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 bg-background min-h-[150px] resize-none"
-                                    placeholder="의견을 자유롭게 입력해주세요..."
-                                    value={inputText}
-                                    onChange={(e) => setInputText(e.target.value)}
-                                />
-                                <div className="text-right text-xs text-muted-foreground mt-1">
-                                    {inputText.length}자
-                                </div>
-                            </div>
-                            <Button
-                                onClick={handleInputSubmit}
-                                size="lg"
-                                fullWidth
-                                disabled={!inputText.trim()}
-                            >
-                                투표하기
-                            </Button>
-                        </div>
-                    )}
-
-                    {/* Instructions */}
-                    <div className="bg-muted/30 rounded-lg p-4 text-sm text-muted-foreground">
-                        <p className="font-semibold mb-2">💡 투표 안내</p>
-                        <ul className="space-y-1">
-                            <li>• 한 번 투표하면 변경할 수 없습니다</li>
-                            <li>• 신중하게 선택해주세요</li>
-                            <li>• 투표 후 결과 발표를 기다려주세요</li>
-                        </ul>
-                    </div>
+        <div className="w-full max-w-lg mx-auto flex flex-col min-h-[calc(100vh-2rem)]">
+            {/* Header: agenda info */}
+            <div className="text-center space-y-2 pt-2 pb-3 flex-shrink-0">
+                <div className="inline-block px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-semibold animate-pulse-slow border border-primary/20">
+                    투표 진행 중
                 </div>
-            </Card>
+                <h1 className="text-lg sm:text-xl font-bold text-foreground leading-snug">
+                    {agenda.title}
+                </h1>
+                {agenda.description && (
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                        {agenda.description}
+                    </p>
+                )}
+            </div>
+
+            {/* Voting area: fills remaining space */}
+            <div className="flex-1 flex flex-col justify-center">
+                {/* PROS_CONS voting */}
+                {(agenda.type === 'PROS_CONS' || !agenda.type) && (
+                    <div className="grid grid-cols-3 gap-2 sm:gap-3 py-2">
+                        <button
+                            onClick={() => handleChoiceClick('찬성')}
+                            className={`${getChoiceStyle('찬성')} py-6 sm:py-8 rounded-2xl shadow-sm border border-black/5 transition-all duration-150 active:scale-95 flex flex-col items-center justify-center gap-2`}
+                        >
+                            <span className="text-3xl sm:text-4xl drop-shadow-sm">{getChoiceIcon('찬성')}</span>
+                            <span className="text-lg sm:text-xl font-bold">찬성</span>
+                        </button>
+
+                        <button
+                            onClick={() => handleChoiceClick('반대')}
+                            className={`${getChoiceStyle('반대')} py-6 sm:py-8 rounded-2xl shadow-sm border border-black/5 transition-all duration-150 active:scale-95 flex flex-col items-center justify-center gap-2`}
+                        >
+                            <span className="text-3xl sm:text-4xl drop-shadow-sm">{getChoiceIcon('반대')}</span>
+                            <span className="text-lg sm:text-xl font-bold">반대</span>
+                        </button>
+
+                        <button
+                            onClick={() => handleChoiceClick('기권')}
+                            className={`${getChoiceStyle('기권')} py-6 sm:py-8 rounded-2xl shadow-sm border border-black/5 transition-all duration-150 active:scale-95 flex flex-col items-center justify-center gap-2`}
+                        >
+                            <span className="text-3xl sm:text-4xl opacity-80">{getChoiceIcon('기권')}</span>
+                            <span className="text-lg sm:text-xl font-bold">기권</span>
+                        </button>
+                    </div>
+                )}
+
+                {/* MULTIPLE_CHOICE */}
+                {agenda.type === 'MULTIPLE_CHOICE' && (
+                    <div className="space-y-2 py-2">
+                        {(agenda.options || []).map((option: string, index: number) => (
+                            <button
+                                key={index}
+                                onClick={() => handleChoiceClick(option)}
+                                className="w-full p-4 text-left bg-card hover:bg-muted/50 border-2 border-border hover:border-primary rounded-xl transition-all duration-200 flex items-center gap-3 active:scale-98"
+                            >
+                                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm flex-shrink-0">
+                                    {index + 1}
+                                </div>
+                                <span className="text-base font-medium">{option}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {/* INPUT type */}
+                {agenda.type === 'INPUT' && (
+                    <div className="space-y-3 py-2">
+                        <textarea
+                            className="w-full p-3 text-base border-2 border-border rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 bg-background min-h-[120px] resize-none"
+                            placeholder="의견을 자유롭게 입력해주세요..."
+                            value={inputText}
+                            onChange={(e) => setInputText(e.target.value)}
+                        />
+                        <div className="text-right text-xs text-muted-foreground">
+                            {inputText.length}자
+                        </div>
+                        <Button
+                            onClick={handleInputSubmit}
+                            size="lg"
+                            fullWidth
+                            disabled={!inputText.trim()}
+                        >
+                            투표하기
+                        </Button>
+                    </div>
+                )}
+            </div>
+
+            {/* Bottom hint */}
+            <div className="flex-shrink-0 bg-muted/30 rounded-lg p-3 text-xs text-muted-foreground mb-2">
+                <p className="font-semibold mb-1">💡 투표 안내</p>
+                <ul className="space-y-0.5">
+                    <li>• 한 번 투표하면 변경할 수 없습니다</li>
+                    <li>• 신중하게 선택해주세요</li>
+                </ul>
+            </div>
 
             {/* Confirmation Modal */}
             <ConfirmationModal

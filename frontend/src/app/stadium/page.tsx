@@ -6,15 +6,24 @@ import CountUpDisplay from '@/components/stadium/CountUpDisplay';
 import socketService from '@/lib/socket';
 import api from '@/lib/api';
 
-type Theme = 'classic' | 'serious' | 'trust' | 'fancy' | 'modern' | 'vibrant' | 'elegant' | 'eco';
+type Theme = 'classic' | 'minimal' | 'warm' | 'nature' | 'royal';
 type Stage = 'pending' | 'submitted' | 'voting' | 'ended' | 'announced';
+
+const THEMES: { id: Theme; name: string; color: string }[] = [
+    { id: 'classic', name: '클래식', color: 'bg-blue-600' },
+    { id: 'minimal', name: '미니멀', color: 'bg-neutral-700' },
+    { id: 'warm', name: '골드', color: 'bg-amber-600' },
+    { id: 'nature', name: '포레스트', color: 'bg-green-700' },
+    { id: 'royal', name: '로얄', color: 'bg-purple-700' },
+];
 
 function StadiumContent() {
     const searchParams = useSearchParams();
     const sessionId = searchParams.get('session');
 
     // Theme state
-    const [theme, setTheme] = useState<Theme>((searchParams.get('theme') as Theme) || 'dark');
+    const [theme, setTheme] = useState<Theme>((searchParams.get('theme') as Theme) || 'classic');
+    const [showThemePicker, setShowThemePicker] = useState(false);
 
     // Data state
     const [stats, setStats] = useState<any>(null);
@@ -32,7 +41,6 @@ function StadiumContent() {
         if (!sessionId) return;
 
         try {
-            // Fetch session details
             const sessionRes = await api.getSession(sessionId);
             if (sessionRes.success) {
                 setSessionName(sessionRes.session.title || sessionRes.session.name);
@@ -50,20 +58,16 @@ function StadiumContent() {
             const sessionData = await api.getSessionAgendas(sessionId);
             const agendas = sessionData.agendas || [];
 
-            // Priority: voting > submitted > announced (newest) > ended (newest)
             let activeAgenda = agendas.find((a: any) => a.stage === 'voting');
-
             if (!activeAgenda) {
                 activeAgenda = agendas.find((a: any) => a.stage === 'submitted');
             }
-
             if (!activeAgenda) {
                 const reversedAgendas = [...agendas].reverse();
                 activeAgenda = reversedAgendas.find((a: any) => a.stage === 'announced' || a.stage === 'ended');
             }
 
             if (activeAgenda) {
-                console.log('[Stadium] Active agenda found:', activeAgenda.title, activeAgenda.stage);
                 setAgendaTitle(activeAgenda.title);
                 setCurrentStage(activeAgenda.stage as Stage);
                 setForcePending(false);
@@ -79,7 +83,6 @@ function StadiumContent() {
                     socketService.emit('stats:request', { agendaId: activeAgenda.id });
                 }
             } else {
-                console.log('[Stadium] No active agenda found');
                 setAgendaTitle('회의 진행 중');
                 setCurrentStage('pending');
                 setForcePending(true);
@@ -93,30 +96,23 @@ function StadiumContent() {
         if (sessionId) {
             refreshState();
 
-            // Connect to WebSocket
-            // Important: Call joinSession AFTER ensuring connection or letting the service handle queueing
             socketService.connect();
             socketService.joinSession(sessionId, undefined, 'display');
 
-            // Listeners
             socketService.on('connect', () => {
-                console.log('[Stadium] Socket connected/reconnected. Refreshing state...');
                 refreshState();
             });
 
             socketService.on('stats:updated', (data) => {
-                console.log('[Stadium] stats:updated received, totalVotes:', data?.totalVotes);
                 setStats((prev: any) => ({ ...prev, ...data }));
             });
 
             socketService.on('stats:response', (data) => {
-                console.log('[Stadium] stats:response received:', data.title);
                 setStats((prev: any) => ({ ...prev, ...data }));
                 setAgendaTitle(data.title);
             });
 
             socketService.on('result:published', ({ stats: publishedStats }) => {
-                console.log('[Stadium] result:published received');
                 setStats(publishedStats);
                 setAgendaTitle(publishedStats.title);
                 setCurrentStage('announced');
@@ -124,26 +120,20 @@ function StadiumContent() {
             });
 
             socketService.on('stage:changed', ({ stage, agendaId }) => {
-                // Ensure we handle stage updates instantly
-                console.log('[Stadium] stage:changed received:', stage, agendaId);
                 setCurrentStage(stage as Stage);
                 setForcePending(false);
 
                 if (stage === 'submitted' || stage === 'voting') {
-                    console.log('[Stadium] Requesting stats for:', agendaId);
                     socketService.emit('stats:request', { agendaId });
                 }
             });
 
             socketService.on('vote:ended', ({ agendaId }) => {
-                console.log('[Stadium] vote:ended received');
                 setCurrentStage('ended');
             });
 
             socketService.on('session:settings:update', (settings) => {
-                console.log('[Stadium] session:settings:update received:', settings);
                 if (settings.stadiumTheme) {
-                    console.log(`[Stadium] Applying new theme: ${settings.stadiumTheme}`);
                     setTheme(settings.stadiumTheme as Theme);
                 }
             });
@@ -174,159 +164,171 @@ function StadiumContent() {
     }, [sessionId]);
 
     useEffect(() => {
-        console.log(`[Stadium] Theme changed to: ${theme}`);
         document.documentElement.setAttribute('data-theme', theme);
     }, [theme]);
 
-    // Renders
     const isPending = forcePending || (currentStage === 'pending' && !stats);
 
     return (
-        <div className="relative min-h-screen w-full overflow-hidden bg-background text-foreground font-sans selection:bg-primary/30" data-theme={theme}>
-            {/* Background Effects */}
+        <div className="relative min-h-screen w-full overflow-hidden font-sans selection:bg-primary/30" data-theme={theme}
+            style={{ backgroundColor: `rgb(var(--background))`, color: `rgb(var(--foreground))` }}>
+
+            {/* Background */}
             <div className="absolute inset-0 z-0">
-                <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-primary/20 rounded-full blur-[120px] animate-pulse-slow" />
-                <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-secondary/20 rounded-full blur-[120px] animate-pulse-slow" style={{ animationDelay: '1s' }} />
-                <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
+                <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full blur-[120px] animate-pulse-slow"
+                    style={{ backgroundColor: `rgba(var(--primary), 0.15)` }} />
+                <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full blur-[120px] animate-pulse-slow"
+                    style={{ backgroundColor: `rgba(var(--primary), 0.08)`, animationDelay: '1s' }} />
             </div>
 
-            {/* Top Bar: Session Info & Access Code */}
-            <header className="relative z-10 w-full p-8 flex justify-between items-start">
+            {/* Top Bar */}
+            <header className="relative z-10 w-full px-10 py-6 flex justify-between items-center">
                 <div className="flex items-center space-x-4">
                     {logoUrl ? (
                         <img src={`${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3011')}${logoUrl}`}
-                            alt="Logo" className="h-16 w-auto object-contain drop-shadow-lg" />
+                            alt="Logo" className="h-14 w-auto object-contain drop-shadow-lg" />
                     ) : (
-                        <div className="flex flex-col">
-                            <h1 className="text-3xl font-black tracking-tighter text-white">
-                                PROK VOTE
-                            </h1>
-                            <span className="text-sm text-slate-400 font-medium tracking-widest uppercase">Real-time Voting System</span>
-                        </div>
+                        <h1 className="text-2xl font-black tracking-tighter text-white">PROK VOTE</h1>
                     )}
                 </div>
 
-                {/* Access Code Badge */}
+                {/* Access Code */}
                 {accessCode && (
-                    <div className="flex flex-col items-end">
-                        <div className="text-xs text-muted-foreground font-bold uppercase tracking-widest mb-1">Access Code</div>
-                        <div className="bg-white/10 backdrop-blur-md border border-white/10 px-6 py-2 rounded-lg">
-                            <span className="text-4xl font-mono font-bold tracking-widest text-primary shadow-glow">{accessCode}</span>
+                    <div className="flex items-center gap-3">
+                        <span className="text-sm font-medium opacity-50">참여 코드</span>
+                        <div className="px-5 py-2 rounded-lg border border-white/10"
+                            style={{ backgroundColor: `rgba(var(--primary), 0.15)` }}>
+                            <span className="text-3xl font-mono font-bold tracking-[0.3em]"
+                                style={{ color: `rgb(var(--primary))` }}>{accessCode}</span>
                         </div>
                     </div>
                 )}
             </header>
 
-            {/* Main Content Area */}
-            <main className="relative z-10 flex-1 flex flex-col items-center justify-center p-8 w-full max-w-[90rem] mx-auto min-h-[70vh]">
+            {/* Main Content */}
+            <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-8 w-full max-w-[90rem] mx-auto"
+                style={{ minHeight: 'calc(100vh - 120px)' }}>
 
-                {/* PENDING / SHOW LOGO STATE */}
+                {/* ===== PENDING / LOGO ===== */}
                 {(isPending || forceShowLogo) && (
-                    <div className="flex flex-col items-center justify-center space-y-12 animate-fade-in">
+                    <div className="flex flex-col items-center justify-center space-y-10 animate-fade-in">
                         {logoUrl && (
                             <div className="relative">
-                                <div className="absolute inset-0 bg-white/20 blur-3xl rounded-full" />
+                                <div className="absolute inset-0 bg-white/10 blur-3xl rounded-full" />
                                 <img
                                     src={`${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3011')}${logoUrl}`}
-                                    alt="Session Logo Big"
-                                    className="relative max-h-[40vh] object-contain drop-shadow-2xl animate-bounce-slight"
+                                    alt="Logo"
+                                    className="relative max-h-[35vh] object-contain drop-shadow-2xl"
                                 />
                             </div>
                         )}
                         <div className="text-center space-y-4">
-                            <h2 className="text-6xl font-black text-white tracking-tight drop-shadow-xl">
+                            <h2 className="text-7xl font-black text-white tracking-tight drop-shadow-xl">
                                 {sessionName || 'PROK VOTE'}
                             </h2>
-                            <div className="inline-flex items-center space-x-3 px-6 py-3 rounded-full bg-slate-900/50 border border-white/10 backdrop-blur-sm">
+                            <div className="inline-flex items-center space-x-3 px-6 py-3 rounded-full border border-white/10"
+                                style={{ backgroundColor: `rgba(var(--surface), 0.5)` }}>
                                 <span className="relative flex h-3 w-3">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-success"></span>
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+                                        style={{ backgroundColor: `rgb(var(--success))` }}></span>
+                                    <span className="relative inline-flex rounded-full h-3 w-3"
+                                        style={{ backgroundColor: `rgb(var(--success))` }}></span>
                                 </span>
-                                <span className="text-xl text-slate-300 font-light tracking-wide uppercase">Meeting in Progress</span>
+                                <span className="text-xl font-light tracking-wide opacity-60">회의 진행 중</span>
                             </div>
                         </div>
                     </div>
                 )}
 
-                {/* SUBMITTED STATE (Agenda Intro) */}
+                {/* ===== SUBMITTED (안건 소개) ===== */}
                 {(!isPending && !forceShowLogo && currentStage === 'submitted' && stats) && (
                     <div className="w-full max-w-5xl mx-auto flex flex-col items-center text-center animate-slide-in-bottom">
-                        <div className="mb-6 px-4 py-1.5 rounded-full bg-primary/20 border border-primary/30 text-primary font-bold tracking-widest uppercase text-sm">
-                            New Agenda
+                        <div className="mb-6 px-5 py-2 rounded-full text-sm font-bold tracking-widest"
+                            style={{ backgroundColor: `rgba(var(--primary), 0.2)`, color: `rgb(var(--primary))`, border: `1px solid rgba(var(--primary), 0.3)` }}>
+                            새 안건
                         </div>
                         <h1 className="text-7xl md:text-8xl font-black text-white leading-tight mb-8 drop-shadow-2xl max-w-6xl break-keep">
                             {stats.title}
                         </h1>
-                        <div className="w-full h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent mb-10" />
+                        <div className="w-full h-px mb-10" style={{ background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.15), transparent)' }} />
                         {stats.description && (
-                            <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-10 rounded-3xl max-w-4xl w-full shadow-2xl">
-                                <p className="text-3xl text-slate-200 leading-relaxed font-light break-keep whitespace-pre-wrap">
+                            <div className="p-10 rounded-3xl max-w-4xl w-full shadow-2xl border border-white/10"
+                                style={{ backgroundColor: `rgba(var(--surface), 0.5)` }}>
+                                <p className="text-3xl leading-relaxed font-light break-keep whitespace-pre-wrap opacity-90">
                                     {stats.description}
                                 </p>
                             </div>
                         )}
-                        <p className="mt-12 text-2xl text-slate-400 animate-pulse font-medium">Waiting for voting to start...</p>
+                        <p className="mt-12 text-2xl animate-pulse font-medium opacity-50">투표 시작 대기 중...</p>
                     </div>
                 )}
 
-                {/* VOTING STATE */}
+                {/* ===== VOTING (투표 진행 중) ===== */}
                 {(!isPending && !forceShowLogo && currentStage === 'voting' && stats) && (
                     <div className="w-full flex flex-col items-center justify-center animate-fade-in">
-                        <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-success via-primary to-secondary animate-gradient-x" />
+                        <div className="absolute top-0 left-0 right-0 h-1.5 animate-gradient-x"
+                            style={{ background: `linear-gradient(to right, rgb(var(--success)), rgb(var(--primary)), rgb(var(--accent)))` }} />
 
-                        <h2 className="text-4xl font-bold text-slate-300 mb-12 opacity-80">{stats.title}</h2>
+                        <h2 className="text-4xl font-semibold mb-16 opacity-60">{stats.title}</h2>
 
-                        <div className="relative group">
-                            <div className="absolute inset-0 bg-primary/30 blur-[60px] rounded-full animate-pulse-slow" />
-                            <div className="relative w-[500px] h-[500px] rounded-full border-[10px] border-white/5 bg-slate-900/50 backdrop-blur-sm flex flex-col items-center justify-center shadow-2xl overflow-hidden">
-                                {/* Timer/Progress Ring Effect (Simplified as rotating border or similar if needed, keeping it clean for now) */}
-                                <div className="absolute inset-0 border-[10px] border-t-primary border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin-slow-reverse opacity-50" />
-
-                                <div className="text-9xl font-black tabular-nums text-white drop-shadow-lg scale-110">
+                        <div className="relative">
+                            <div className="absolute inset-0 rounded-full blur-[80px] animate-pulse-slow"
+                                style={{ backgroundColor: `rgba(var(--primary), 0.25)` }} />
+                            <div className="relative w-[420px] h-[420px] rounded-full border-[6px] border-white/5 flex flex-col items-center justify-center shadow-2xl overflow-hidden"
+                                style={{ backgroundColor: `rgba(var(--surface), 0.5)` }}>
+                                <div className="absolute inset-0 border-[6px] rounded-full animate-spin-slow-reverse opacity-30"
+                                    style={{ borderColor: `rgb(var(--primary)) transparent transparent transparent` }} />
+                                <div className="text-[10rem] font-black tabular-nums text-white drop-shadow-lg leading-none">
                                     {stats.totalVotes || 0}
                                 </div>
-                                <div className="text-3xl text-primary font-bold mt-4 uppercase tracking-widest">Votes Cast</div>
+                                <div className="text-2xl font-bold mt-2 tracking-widest"
+                                    style={{ color: `rgb(var(--primary))` }}>투표 수</div>
                             </div>
                         </div>
 
-                        <div className="mt-16 text-3xl font-light text-white animate-bounce-slight">
-                            Voting is now open
+                        <div className="mt-14 text-3xl font-light text-white animate-bounce-slight opacity-70">
+                            투표가 진행 중입니다
                         </div>
                     </div>
                 )}
 
-                {/* ENDED STATE */}
+                {/* ===== ENDED (투표 종료) ===== */}
                 {(!isPending && !forceShowLogo && currentStage === 'ended') && (
                     <div className="flex flex-col items-center justify-center animate-scale-in">
-                        <div className="rounded-full bg-danger/20 p-8 mb-8 backdrop-blur-md border border-danger/30">
-                            <svg className="w-32 h-32 text-danger shadow-glow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="rounded-full p-8 mb-8 border"
+                            style={{ backgroundColor: `rgba(var(--danger), 0.15)`, borderColor: `rgba(var(--danger), 0.3)` }}>
+                            <svg className="w-28 h-28" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                style={{ color: `rgb(var(--danger))` }}>
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
                             </svg>
                         </div>
-                        <h2 className="text-8xl font-black text-white drop-shadow-2xl mb-4">VOTE CLOSED</h2>
-                        <p className="text-3xl text-slate-400 font-light">Tallying results...</p>
+                        <h2 className="text-8xl font-black text-white drop-shadow-2xl mb-4">투표 종료</h2>
+                        <p className="text-3xl font-light opacity-50">결과 집계 중...</p>
                     </div>
                 )}
 
-                {/* ANNOUNCED (RESULTS) STATE */}
+                {/* ===== ANNOUNCED (결과 발표) ===== */}
                 {(!isPending && !forceShowLogo && currentStage === 'announced' && stats) && (
                     <div className="w-full max-w-7xl mx-auto animate-slide-in-bottom flex flex-col h-full">
                         <div className="text-center mb-12">
-                            <h2 className="text-5xl font-bold text-white mb-2">{stats.title}</h2>
-                            <span className="px-4 py-1 rounded-full bg-success/20 text-success text-sm font-bold uppercase tracking-wider border border-success/20">Official Results</span>
+                            <h2 className="text-6xl font-bold text-white mb-3">{stats.title}</h2>
+                            <span className="px-5 py-1.5 rounded-full text-sm font-bold tracking-wider border"
+                                style={{ backgroundColor: `rgba(var(--success), 0.15)`, color: `rgb(var(--success))`, borderColor: `rgba(var(--success), 0.25)` }}>
+                                최종 결과
+                            </span>
                         </div>
 
-                        {/* Pros/Cons Result */}
+                        {/* 찬반 결과 */}
                         {(!stats.type || stats.type === 'PROS_CONS') && (
                             <div className="flex-1 flex items-center justify-center gap-8 md:gap-16">
-                                <CountUpDisplay title="Approve" value={stats.approveCount || 0} color="from-success/20 to-success/30" borderColor="border-success/50" icon="check" />
-                                <CountUpDisplay title="Reject" value={stats.rejectCount || 0} color="from-danger/20 to-danger/30" borderColor="border-danger/50" icon="x" />
-                                <CountUpDisplay title="Abstain" value={stats.abstainCount || 0} color="from-muted/20 to-muted/30" borderColor="border-muted/50" icon="minus" />
+                                <CountUpDisplay title="찬성" value={stats.approveCount || 0} color="from-success/20 to-success/30" borderColor="border-success/50" icon="check" />
+                                <CountUpDisplay title="반대" value={stats.rejectCount || 0} color="from-danger/20 to-danger/30" borderColor="border-danger/50" icon="x" />
+                                <CountUpDisplay title="기권" value={stats.abstainCount || 0} color="from-muted/20 to-muted/30" borderColor="border-muted/50" icon="minus" />
                             </div>
                         )}
 
-                        {/* Multiple Choice Result */}
+                        {/* 선택형 결과 */}
                         {stats.type === 'MULTIPLE_CHOICE' && (
                             <div className="grid grid-cols-1 gap-6 w-full max-w-5xl mx-auto">
                                 {stats.options && stats.options.map((option: string, index: number) => {
@@ -338,30 +340,35 @@ function StadiumContent() {
                                     return (
                                         <div
                                             key={index}
-                                            className={`relative flex items-center p-6 rounded-2xl overflow-hidden border ${isWinner ? 'border-primary shadow-[0_0_30px_rgba(var(--primary),0.2)]' : 'border-white/10 backdrop-blur-md'}`}
+                                            className={`relative flex items-center p-6 rounded-2xl overflow-hidden border ${isWinner ? 'shadow-lg' : 'border-white/10'}`}
                                             style={{
-                                                backgroundColor: isWinner ? 'rgba(var(--primary), 0.1)' : 'rgba(var(--surface), 0.5)'
+                                                backgroundColor: isWinner ? `rgba(var(--primary), 0.1)` : `rgba(var(--surface), 0.5)`,
+                                                borderColor: isWinner ? `rgba(var(--primary), 0.4)` : undefined,
                                             }}
                                         >
-                                            {/* Progress Bar Background */}
                                             <div
-                                                className={`absolute left-0 top-0 bottom-0 transition-all duration-1000 ${isWinner ? 'bg-primary/20' : 'bg-primary/5'}`}
-                                                style={{ width: `${percentage}%` }}
+                                                className="absolute left-0 top-0 bottom-0 transition-all duration-1000"
+                                                style={{
+                                                    width: `${percentage}%`,
+                                                    backgroundColor: isWinner ? `rgba(var(--primary), 0.2)` : `rgba(var(--primary), 0.05)`,
+                                                }}
                                             />
-
                                             <div className="relative z-10 flex justify-between items-center w-full">
                                                 <div className="flex items-center gap-6">
                                                     <div
-                                                        className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold ${isWinner ? 'bg-primary text-white' : 'text-muted-foreground border border-white/10'}`}
-                                                        style={!isWinner ? { backgroundColor: 'rgba(var(--surface), 0.5)' } : {}}
+                                                        className="w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold"
+                                                        style={{
+                                                            backgroundColor: isWinner ? `rgb(var(--primary))` : `rgba(var(--surface), 0.5)`,
+                                                            color: isWinner ? 'white' : undefined,
+                                                        }}
                                                     >
                                                         {index + 1}
                                                     </div>
                                                     <span className="text-3xl font-medium truncate max-w-2xl">{option}</span>
                                                 </div>
                                                 <div className="flex flex-col items-end">
-                                                    <span className="text-4xl font-black tabular-nums text-foreground">{count}</span>
-                                                    <span className="text-lg text-muted-foreground font-mono">{percentage.toFixed(1)}%</span>
+                                                    <span className="text-4xl font-black tabular-nums">{count}</span>
+                                                    <span className="text-lg font-mono opacity-60">{percentage.toFixed(1)}%</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -370,7 +377,7 @@ function StadiumContent() {
                             </div>
                         )}
 
-                        {/* Text Input Result */}
+                        {/* 텍스트 입력 결과 */}
                         {stats.type === 'INPUT' && (
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-6 w-full auto-rows-min">
                                 {stats.voteCounts && Object.entries(stats.voteCounts)
@@ -378,50 +385,80 @@ function StadiumContent() {
                                     .map(([text, count], index) => (
                                         <div
                                             key={index}
-                                            className="backdrop-blur-md rounded-2xl p-6 border border-white/10 flex justify-between items-center"
-                                            style={{ backgroundColor: 'rgba(var(--surface), 0.5)' }}
+                                            className="rounded-2xl p-6 border border-white/10 flex justify-between items-center"
+                                            style={{ backgroundColor: `rgba(var(--surface), 0.5)` }}
                                         >
-                                            <div className="text-xl font-medium truncate pr-4 text-foreground/90" title={text}>{text}</div>
-                                            <div className="text-2xl font-bold text-primary whitespace-nowrap">{count as number}</div>
+                                            <div className="text-xl font-medium truncate pr-4 opacity-90" title={text}>{text}</div>
+                                            <div className="text-2xl font-bold whitespace-nowrap"
+                                                style={{ color: `rgb(var(--primary))` }}>{count as number}</div>
                                         </div>
                                     ))}
                             </div>
                         )}
 
-                        <div className="mt-12 flex justify-center gap-12 text-muted-foreground">
+                        {/* 투표율 & 참여 */}
+                        <div className="mt-12 flex justify-center gap-12 opacity-70">
                             <div className="text-center">
-                                <div className="text-sm uppercase tracking-widest mb-1">Turnout</div>
-                                <div className="text-3xl font-bold text-foreground">{(stats.turnoutPercentage || 0).toFixed(1)}%</div>
+                                <div className="text-sm tracking-widest mb-1 opacity-60">투표율</div>
+                                <div className="text-3xl font-bold">{(stats.turnoutPercentage || 0).toFixed(1)}%</div>
                             </div>
                             <div className="w-px bg-white/10" />
                             <div className="text-center">
-                                <div className="text-sm uppercase tracking-widest mb-1">Votes / Total</div>
-                                <div className="text-3xl font-bold text-foreground">{stats.totalVotes || 0} <span className="text-muted-foreground text-2xl">/ {stats.totalParticipants || 0}</span></div>
+                                <div className="text-sm tracking-widest mb-1 opacity-60">참여 / 전체</div>
+                                <div className="text-3xl font-bold">{stats.totalVotes || 0} <span className="text-2xl opacity-50">/ {stats.totalParticipants || 0}</span></div>
                             </div>
                         </div>
                     </div>
                 )}
             </main>
 
-            {/* Footer Control Info */}
-            <div className="fixed bottom-8 right-8 z-[100]">
+            {/* Bottom Controls: Theme Picker + Fullscreen */}
+            <div className="fixed bottom-6 right-6 z-[100] flex items-center gap-3">
+                {/* Theme Picker */}
+                <div className="relative">
+                    {showThemePicker && (
+                        <div className="absolute bottom-14 right-0 p-3 rounded-2xl border border-white/10 shadow-2xl flex gap-2"
+                            style={{ backgroundColor: `rgba(var(--card), 0.95)`, backdropFilter: 'blur(20px)' }}>
+                            {THEMES.map((t) => (
+                                <button
+                                    key={t.id}
+                                    onClick={() => { setTheme(t.id); setShowThemePicker(false); }}
+                                    className={`flex flex-col items-center gap-1.5 p-2 rounded-xl transition-all ${theme === t.id ? 'ring-2 ring-white/50 scale-105' : 'hover:bg-white/10'}`}
+                                    title={t.name}
+                                >
+                                    <div className={`w-8 h-8 rounded-full ${t.color} shadow-inner`} />
+                                    <span className="text-[10px] font-medium opacity-70">{t.name}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    <button
+                        onClick={() => setShowThemePicker(!showThemePicker)}
+                        className="p-3.5 rounded-full transition-all duration-300 border border-white/10 shadow-xl group"
+                        style={{ backgroundColor: `rgba(var(--surface), 0.7)`, backdropFilter: 'blur(12px)' }}
+                        title="테마 변경"
+                    >
+                        <svg className="w-5 h-5 text-white opacity-70 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                        </svg>
+                    </button>
+                </div>
+
+                {/* Fullscreen */}
                 <button
                     onClick={() => {
                         const elem = document.documentElement;
                         if (!document.fullscreenElement) {
-                            if (elem.requestFullscreen) {
-                                elem.requestFullscreen();
-                            }
+                            if (elem.requestFullscreen) elem.requestFullscreen();
                         } else {
-                            if (document.exitFullscreen) {
-                                document.exitFullscreen();
-                            }
+                            if (document.exitFullscreen) document.exitFullscreen();
                         }
                     }}
-                    className="p-4 bg-white/10 hover:bg-white/20 rounded-full transition-all duration-300 backdrop-blur-md border border-white/20 shadow-2xl group"
-                    title="Toggle Fullscreen"
+                    className="p-3.5 rounded-full transition-all duration-300 border border-white/10 shadow-xl group"
+                    style={{ backgroundColor: `rgba(var(--surface), 0.7)`, backdropFilter: 'blur(12px)' }}
+                    title="전체 화면"
                 >
-                    <svg className="w-6 h-6 text-white group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-white opacity-70 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
                     </svg>
                 </button>

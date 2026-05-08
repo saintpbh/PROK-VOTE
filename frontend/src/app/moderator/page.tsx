@@ -5,6 +5,7 @@ import SessionManager from '@/components/admin/SessionManager';
 import QRGenerator from '@/components/admin/QRGenerator';
 import AgendaList from '@/components/admin/AgendaList';
 import StageController from '@/components/admin/StageController';
+import InfraManager from '@/components/admin/InfraManager';
 import { useSessionStore } from '@/store/sessionStore';
 import api from '@/lib/api';
 import socketService from '@/lib/socket';
@@ -12,7 +13,7 @@ import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 
 export default function ModeratorPage() {
-    const [activeTab, setActiveTab] = useState<'sessions' | 'qr' | 'agendas' | 'control'>('sessions');
+    const [activeTab, setActiveTab] = useState<'sessions' | 'qr' | 'agendas' | 'control' | 'infra'>('sessions');
     const { currentSession, setCurrentSession, currentAgenda } = useSessionStore();
     const [sessions, setSessions] = useState<any[]>([]);
     const [user, setUser] = useState<any>(null);
@@ -92,6 +93,7 @@ export default function ModeratorPage() {
         { id: 'qr', label: 'QR 생성' },
         { id: 'agendas', label: '안건 관리' },
         { id: 'control', label: '투표 제어' },
+        { id: 'infra', label: '인프라 관리' },
     ];
 
     const handleLogout = () => {
@@ -123,14 +125,12 @@ export default function ModeratorPage() {
                         {currentSession && (
                             <button
                                 onClick={async () => {
-                                    if (window.confirm('전광판을 정말 리셋하시겠습니까?')) {
-                                        try {
-                                            socketService.connect();
-                                            socketService.emit('stadium:control', { sessionId: currentSession.id, action: 'reset' });
-                                            toast.success('전광판이 리셋되었습니다');
-                                        } catch (e) {
-                                            toast.error('전광판 리셋 실패');
-                                        }
+                                    try {
+                                        socketService.connect();
+                                        socketService.emit('stadium:control', { sessionId: currentSession.id, action: 'reset' });
+                                        toast.success('전광판이 리셋되었습니다');
+                                    } catch (e) {
+                                        toast.error('전광판 리셋 실패');
                                     }
                                 }}
                                 className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
@@ -277,6 +277,8 @@ export default function ModeratorPage() {
                             )}
                         </div>
                     )}
+
+                    {activeTab === 'infra' && <InfraManager />}
                 </div>
             </div>
         </div>

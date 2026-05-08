@@ -1,20 +1,20 @@
 import { io, Socket } from 'socket.io-client';
 
+// Production-aware logger — silences debug noise in production
+const isProd = process.env.NODE_ENV === 'production';
+const logger = {
+    debug: (...args: any[]) => { if (!isProd) console.log(...args); },
+    info: (...args: any[]) => console.log(...args),
+    warn: (...args: any[]) => console.warn(...args),
+    error: (...args: any[]) => console.error(...args),
+};
+
 let SOCKET_URL = process.env.NEXT_PUBLIC_WS_URL;
 
-if (typeof window !== 'undefined') {
-    // Override localhost if accessed from a local network IP
-    if (SOCKET_URL && SOCKET_URL.includes('localhost') && window.location.hostname !== 'localhost') {
-        SOCKET_URL = `${window.location.protocol}//${window.location.hostname}:3001`;
-    }
-}
-
 if (!SOCKET_URL) {
-    if (typeof window !== 'undefined') {
-        SOCKET_URL = `${window.location.protocol}//${window.location.hostname}:3001`;
-    } else {
-        SOCKET_URL = 'http://localhost:3001';
-    }
+    SOCKET_URL = typeof window !== 'undefined'
+        ? `${window.location.protocol}//${window.location.hostname}:3001`
+        : 'http://localhost:3001';
 } else if (!SOCKET_URL.startsWith('http') && typeof window !== 'undefined') {
     SOCKET_URL = `https://${SOCKET_URL}`;
 }
@@ -25,6 +25,7 @@ class SocketService {
     private maxReconnectAttempts = 5;
     private currentSession: { sessionId: string; voterId?: string; role?: string } | null = null;
     private messageQueue: { event: string; data: any }[] = [];
+    private joinDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
     connect(forceNew: boolean = false): Socket {
         if (this.socket?.connected && !forceNew) {
@@ -35,7 +36,7 @@ class SocketService {
             this.socket.disconnect();
         }
 
-        console.log('[Socket] Attempting connection to:', SOCKET_URL);
+        logger.debug('[Socket] Connecting to:', SOCKET_URL);
         this.socket = io(SOCKET_URL, {
             autoConnect: true,
             reconnection: true,
@@ -43,11 +44,10 @@ class SocketService {
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
             timeout: 20000,
-            transports: ['websocket', 'polling'], // Prioritize websocket
+            transports: ['websocket', 'polling'],
             auth: (cb) => {
                 const adminToken = typeof window !== 'undefined' ? localStorage.getItem('admin_access_token') : null;
                 const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-                console.log('[Socket] Sending auth token:', !!(adminToken || token));
                 cb({ token: adminToken || token });
             }
         });
@@ -60,22 +60,19 @@ class SocketService {
         if (!this.socket) return;
 
         this.socket.on('connect', () => {
-            const socketId = this.socket?.id;
-            console.log('✅ WebSocket connected:', socketId);
+            logger.debug('[Socket] Connected:', this.socket?.id);
             this.reconnectAttempts = 0;
 
             // Process queued messages
             if (this.messageQueue.length > 0) {
-                console.log(`[Socket] Processing ${this.messageQueue.length} queued messages...`);
                 const queue = [...this.messageQueue];
                 this.messageQueue = [];
                 queue.forEach(({ event, data }) => this.emit(event, data));
             }
 
-            // Auto-rejoin session if we were in one
+            // Auto-rejoin session if we were in one (debounced)
             if (this.currentSession) {
-                console.log('🔄 Auto-rejoining session after connect...');
-                this.joinSession(
+                this.debouncedJoin(
                     this.currentSession.sessionId,
                     this.currentSession.voterId,
                     this.currentSession.role
@@ -84,20 +81,18 @@ class SocketService {
         });
 
         this.socket.on('disconnect', (reason) => {
-            console.log('❌ WebSocket disconnected:', reason);
+            logger.debug('[Socket] Disconnected:', reason);
         });
 
         this.socket.on('connect_error', (error) => {
-            console.error('🔥 Connection error:', error);
             this.reconnectAttempts++;
-
             if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-                console.error('Max reconnection attempts reached');
+                logger.error('[Socket] Max reconnection attempts reached:', error.message);
             }
         });
 
         this.socket.on('reconnect', (attemptNumber) => {
-            console.log('🔄 Reconnected after', attemptNumber, 'attempts');
+            logger.debug('[Socket] Reconnected after', attemptNumber, 'attempts');
         });
     }
 
@@ -116,13 +111,9 @@ class SocketService {
         if (this.socket && this.socket.connected) {
             this.socket.emit(event, data);
         } else {
-            console.warn(`[Socket] Not connected. Queueing event: ${event}`);
+            logger.debug(`[Socket] Queueing event: ${event}`);
             this.messageQueue.push({ event, data });
-
-            // If socket doesn't exist at all, try to connect
-            if (!this.socket) {
-                this.connect();
-            }
+            if (!this.socket) this.connect();
         }
     }
 
@@ -136,18 +127,23 @@ class SocketService {
     }
 
     joinSession(sessionId: string, voterId?: string, role?: string) {
-        console.log(`[Socket] joinSession request: sessionId=${sessionId}, role=${role}`);
-        // Store for auto-rejoin
         this.currentSession = { sessionId, voterId, role };
+        this.debouncedJoin(sessionId, voterId, role);
+    }
 
-        if (this.socket?.connected) {
-            console.log(`[Socket] Emitting join:session room: ${sessionId} as ${role || 'voter'}`);
-            this.socket.emit('join:session', { sessionId, voterId, role });
-        } else {
-            console.log(`[Socket] Queueing join:session for when connected: ${sessionId}`);
-            // The 'connect' listener will pick this up via this.currentSession
-            if (!this.socket) this.connect();
-        }
+    // Debounced join prevents duplicate join:session spam when multiple
+    // components call joinSession in quick succession (mount + auto-rejoin)
+    private debouncedJoin(sessionId: string, voterId?: string, role?: string) {
+        if (this.joinDebounceTimer) clearTimeout(this.joinDebounceTimer);
+
+        this.joinDebounceTimer = setTimeout(() => {
+            if (this.socket?.connected) {
+                logger.debug(`[Socket] join:session ${sessionId} as ${role || 'voter'}`);
+                this.socket.emit('join:session', { sessionId, voterId, role });
+            } else {
+                if (!this.socket) this.connect();
+            }
+        }, 100);
     }
 }
 

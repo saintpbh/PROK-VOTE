@@ -58,11 +58,8 @@ export default function StageController({
     const handleStageChange = async (newStage: string) => {
         setLoading(true);
         try {
-            console.log(`[Admin] Emitting stage:update: ${newStage} for agenda ${agendaId}`);
             socketService.emit('stage:update', { agendaId, stage: newStage });
-            console.log(`[Admin] Socket event 'stage:update' emitted for agenda ${agendaId}, stage ${newStage}`);
             await api.updateAgendaStage(agendaId, newStage);
-            console.log(`[Admin] API call 'updateAgendaStage' successful for agenda ${agendaId}, stage ${newStage}`);
             toast.success(`단계가 변경되었습니다: ${getStageName(newStage)}`);
             onStageChange?.(newStage);
         } catch (error: any) {
@@ -76,11 +73,8 @@ export default function StageController({
     const handleEndVoting = async () => {
         setLoading(true);
         try {
-            console.log(`[Admin] Emitting vote:end for agenda ${agendaId}`);
             socketService.emit('vote:end', { agendaId });
-            console.log(`[Admin] Socket event 'vote:end' emitted for agenda ${agendaId}`);
             await api.updateAgendaStage(agendaId, 'ended');
-            console.log(`[Admin] API call 'updateAgendaStage' successful for agenda ${agendaId}, stage 'ended'`);
             toast.success('투표가 종료되었습니다');
             onStageChange?.('ended');
         } catch (error: any) {
@@ -94,11 +88,8 @@ export default function StageController({
     const handlePublishResults = async () => {
         setLoading(true);
         try {
-            console.log(`[Admin] Emitting result:publish for agenda ${agendaId}`);
             socketService.emit('result:publish', { agendaId });
-            console.log(`[Admin] Socket event 'result:publish' emitted for agenda ${agendaId}`);
             await api.updateAgendaStage(agendaId, 'announced');
-            console.log(`[Admin] API call 'updateAgendaStage' successful for agenda ${agendaId}, stage 'announced'`);
             toast.success('결과가 발표되었습니다');
             onStageChange?.('announced');
         } catch (error: any) {

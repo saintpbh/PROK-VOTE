@@ -104,9 +104,22 @@ class QRPDFGenerator {
             }
         }
 
-        // Save PDF
+        // Generate PDF as blob and trigger download via anchor click
         const timestamp = new Date().toISOString().split('T')[0];
-        pdf.save(`prok-vote-qr-codes-${timestamp}.pdf`);
+        const filename = `prok-vote-qr-codes-${timestamp}.pdf`;
+        const pdfBlob = pdf.output('blob');
+        const blobUrl = URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        // Cleanup after a short delay to ensure download starts
+        setTimeout(() => {
+            document.body.removeChild(link);
+            URL.revokeObjectURL(blobUrl);
+        }, 500);
     }
 
     /**

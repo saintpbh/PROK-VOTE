@@ -4,3 +4,4 @@ export { Voter } from './voter.entity';
 export { Agenda, AgendaStage } from './agenda.entity';
 export { Vote, VoteChoice } from './vote.entity';
 export { AuditLog } from './audit-log.entity';
+export { VoteLog } from './vote-log.entity';

@@ -295,4 +295,118 @@ export class SessionController {
             ...result
         };
     }
+
+    /**
+     * Get authenticated participants for a session
+     * GET /sessions/:id/participants
+     */
+    @Get(':id/participants')
+    @UseGuards(AdminGuard)
+    async getParticipants(@Param('id') id: string, @Req() req: any) {
+        const participants = await this.sessionService.getParticipants(id, req.user);
+        return {
+            success: true,
+            participants,
+        };
+    }
+
+    /**
+     * Import agendas from parsed Excel data
+     * POST /sessions/:id/agendas/import
+     */
+    @Post(':id/agendas/import')
+    @UseGuards(AdminGuard)
+    async importAgendas(
+        @Param('id') id: string,
+        @Body() body: { agendas: Array<{ title: string; description?: string; type: string; options?: string[]; isImportant?: boolean }> },
+        @Req() req: any,
+    ) {
+        const result = await this.sessionService.importAgendas(id, body.agendas, req.user);
+        return {
+            success: true,
+            ...result,
+        };
+    }
+
+    // ─── Vote Log Endpoints ───
+
+    /**
+     * Get vote logs for an agenda
+     * GET /sessions/agendas/:id/logs
+     */
+    @Get('agendas/:id/logs')
+    @UseGuards(AdminGuard)
+    async getVoteLogs(
+        @Param('id') id: string,
+        @Req() req: any,
+    ) {
+        const status = (req.query?.status as any) || 'active';
+        const logs = await this.sessionService.getVoteLogs(id, status);
+        return { success: true, logs };
+    }
+
+    /**
+     * Get all vote logs for a session
+     * GET /sessions/:id/vote-logs
+     */
+    @Get(':id/vote-logs')
+    @UseGuards(AdminGuard)
+    async getSessionVoteLogs(
+        @Param('id') id: string,
+        @Req() req: any,
+    ) {
+        const status = (req.query?.status as any) || 'active';
+        const logs = await this.sessionService.getSessionVoteLogs(id, status);
+        return { success: true, logs };
+    }
+
+    /**
+     * Archive vote logs for an agenda
+     * POST /sessions/agendas/:id/logs/archive
+     */
+    @Post('agendas/:id/logs/archive')
+    @UseGuards(AdminGuard)
+    @HttpCode(HttpStatus.OK)
+    async archiveVoteLogs(@Param('id') id: string) {
+        await this.sessionService.archiveVoteLogs(id);
+        return { success: true };
+    }
+
+    /**
+     * Trash vote logs for an agenda
+     * POST /sessions/agendas/:id/logs/trash
+     */
+    @Post('agendas/:id/logs/trash')
+    @UseGuards(AdminGuard)
+    @HttpCode(HttpStatus.OK)
+    async trashVoteLogs(@Param('id') id: string) {
+        await this.sessionService.trashVoteLogs(id);
+        return { success: true };
+    }
+
+    /**
+     * Restore trashed vote logs
+     * POST /sessions/agendas/:id/logs/restore
+     */
+    @Post('agendas/:id/logs/restore')
+    @UseGuards(AdminGuard)
+    @HttpCode(HttpStatus.OK)
+    async restoreVoteLogs(@Param('id') id: string) {
+        await this.sessionService.restoreVoteLogs(id);
+        return { success: true };
+    }
+
+    /**
+     * Export vote logs as CSV
+     * GET /sessions/agendas/:id/logs/export
+     */
+    @Get('agendas/:id/logs/export')
+    @UseGuards(AdminGuard)
+    async exportVoteLogs(@Param('id') id: string, @Res() res: Response) {
+        const csv = await this.sessionService.exportVoteLogs(id);
+        res.header('Content-Type', 'text/csv; charset=utf-8');
+        res.header('Content-Disposition', `attachment; filename="vote_log_${id}.csv"`);
+        // Add BOM for Excel UTF-8 compatibility
+        res.send('\uFEFF' + csv);
+    }
 }
