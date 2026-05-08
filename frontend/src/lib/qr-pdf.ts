@@ -85,29 +85,31 @@ class QRPDFGenerator {
 
         const totalPages = Math.ceil(qrCodes.length / this.CODES_PER_PAGE);
 
-        // Pre-render reusable text images (Korean)
+        // Pre-render reusable text images (Korean) — large & bold for elderly voters
         const headerTextImg = this.renderTextImage(displayName, {
-            fontSize: 13,
-            fontWeight: 'bold',
+            fontSize: 20,
+            fontWeight: '900',
             color: '#FFFFFF',
-            maxWidth: 300,
-            height: 24,
+            maxWidth: 400,
+            height: 34,
             align: 'center',
         });
 
         const subtitleImg = this.renderTextImage('해당 세션에만 투표가 가능합니다', {
-            fontSize: 9,
-            color: '#b4b4c8',
-            maxWidth: 300,
-            height: 16,
+            fontSize: 13,
+            fontWeight: 'bold',
+            color: '#FFFFFF',
+            maxWidth: 400,
+            height: 22,
             align: 'center',
         });
 
         const instructionImg = this.renderTextImage('스마트폰 카메라로 QR코드를 스캔해 주세요', {
-            fontSize: 8,
-            color: '#8c8ca0',
-            maxWidth: 300,
-            height: 14,
+            fontSize: 12,
+            fontWeight: 'bold',
+            color: '#555566',
+            maxWidth: 400,
+            height: 20,
             align: 'center',
         });
 
@@ -149,20 +151,20 @@ class QRPDFGenerator {
                 pdf.setLineWidth(0.2);
                 pdf.roundedRect(innerX, innerY, innerW, innerH, 2, 2, 'FD');
 
-                // ---- Header bar (dark) ----
-                const headerH = 12;
+                // ---- Header bar (dark, taller for readability) ----
+                const headerH = 16;
                 pdf.setFillColor(30, 30, 45);
                 pdf.roundedRect(innerX, innerY, innerW, headerH + 2, 2, 2, 'F');
                 pdf.rect(innerX, innerY + 2, innerW, headerH, 'F');
 
-                // Session name (as canvas image) — centered in header
-                const headerImgW = innerW - 4;
-                const headerImgH = 4;
-                pdf.addImage(headerTextImg, 'PNG', innerX + 2, innerY + 1.5, headerImgW, headerImgH);
+                // Session name (as canvas image) — large & bold
+                const headerImgW = innerW - 2;
+                const headerImgH = 6;
+                pdf.addImage(headerTextImg, 'PNG', innerX + 1, innerY + 1.5, headerImgW, headerImgH);
 
-                // Subtitle (as canvas image)
-                const subtitleImgH = 3;
-                pdf.addImage(subtitleImg, 'PNG', innerX + 2, innerY + 6, headerImgW, subtitleImgH);
+                // Subtitle (as canvas image) — bold white
+                const subtitleImgH = 4;
+                pdf.addImage(subtitleImg, 'PNG', innerX + 1, innerY + 8, headerImgW, subtitleImgH);
 
                 // ---- QR Code ----
                 const qrDataUrl = await QRCode.toDataURL(pageCodes[i].url, {
@@ -193,9 +195,9 @@ class QRPDFGenerator {
                 pdf.setFont('helvetica', 'bold');
                 pdf.text(`No. ${String(ticketNum).padStart(3, '0')}`, innerX + innerW / 2, footerY + 2, { align: 'center' });
 
-                // Instruction (Korean, as canvas image)
-                const instrImgH = 3;
-                pdf.addImage(instructionImg, 'PNG', innerX + 2, footerY + 3.5, headerImgW, instrImgH);
+                // Instruction (Korean, as canvas image) — bold for readability
+                const instrImgH = 4;
+                pdf.addImage(instructionImg, 'PNG', innerX + 1, footerY + 3.5, headerImgW, instrImgH);
 
                 // Decorative line
                 pdf.setDrawColor(220, 220, 230);
