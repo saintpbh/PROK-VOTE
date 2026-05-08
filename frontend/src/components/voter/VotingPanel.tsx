@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Button from '../ui/Button';
 import ConfirmationModal from './ConfirmationModal';
 import socketService from '@/lib/socket';
+import haptic from '@/lib/haptic';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 
@@ -27,9 +28,7 @@ export default function VotingPanel({ agenda, onVoteComplete }: VotingPanelProps
         if (agenda.type !== 'INPUT') {
             setShowConfirmation(true);
         }
-        if (navigator.vibrate) {
-            navigator.vibrate(200);
-        }
+        haptic('select');
     };
 
     const handleMultiToggle = (option: string) => {
@@ -38,9 +37,7 @@ export default function VotingPanel({ agenda, onVoteComplete }: VotingPanelProps
                 ? prev.filter(o => o !== option)
                 : [...prev, option]
         );
-        if (navigator.vibrate) {
-            navigator.vibrate(50);
-        }
+        haptic('tap');
     };
 
     const handleMultiSubmit = () => {
@@ -73,6 +70,7 @@ export default function VotingPanel({ agenda, onVoteComplete }: VotingPanelProps
             });
 
             setTimeout(() => {
+                haptic('confirm');
                 onVoteComplete();
             }, 1000);
         } catch (error: any) {

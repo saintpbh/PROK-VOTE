@@ -9,6 +9,7 @@ import VotingPanel from '@/components/voter/VotingPanel';
 import CompletedScreen from '@/components/voter/CompletedScreen';
 import api from '@/lib/api';
 import socketService from '@/lib/socket';
+import haptic from '@/lib/haptic';
 import { useAuthStore } from '@/store/authStore';
 import { useSessionStore } from '@/store/sessionStore';
 import toast from 'react-hot-toast';
@@ -204,6 +205,7 @@ export default function VotePage() {
             console.log(`[VotePage] stage:changed received: ${stage} for ${agendaId}`);
 
             if (stage === 'voting') {
+                haptic('voteStart');
                 toast.success('투표가 시작되었습니다!');
                 setState('voting');
                 checkVoteStatus();
@@ -218,11 +220,13 @@ export default function VotePage() {
 
         const onVoteEnded = ({ agendaId }: { agendaId: string }) => {
             console.log(`[VotePage] vote:ended received for ${agendaId}`);
+            haptic('voteEnd');
             setState('completed');
         };
 
         const onVoteConfirmed = ({ vote }: { vote: any }) => {
             console.log('[VotePage] vote:confirmed received');
+            haptic('confirm');
             setState('completed');
             toast.success('투표가 완료되었습니다!');
         };
@@ -239,6 +243,7 @@ export default function VotePage() {
             // If access code was refreshed, force all voters to re-authenticate
             if (settings.accessCode) {
                 console.warn('[VotePage] Access code changed — forcing re-authentication');
+                haptic('warning');
                 toast('접속 코드가 변경되었습니다.\n새 코드로 다시 인증해주세요.', {
                     icon: '🔒',
                     duration: 5000,

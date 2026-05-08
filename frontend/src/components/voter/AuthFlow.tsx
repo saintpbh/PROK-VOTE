@@ -8,6 +8,7 @@ import fingerprintService from '@/lib/fingerprint';
 import geolocationService from '@/lib/geolocation';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
+import haptic from '@/lib/haptic';
 import toast from 'react-hot-toast';
 
 interface AuthFlowProps {
@@ -40,6 +41,7 @@ export default function AuthFlow({ tokenId, sessionData, onSuccess }: AuthFlowPr
             const fp = await fingerprintService.getFingerprint();
             setAuthData((prev) => ({ ...prev, fingerprint: fp }));
             setStep('gps');
+            haptic('press');
         } catch (error) {
             toast.error('기기 인식에 실패했습니다');
             console.error(error);
@@ -86,6 +88,7 @@ export default function AuthFlow({ tokenId, sessionData, onSuccess }: AuthFlowPr
             }));
 
             setStep('code');
+            haptic('success');
         } catch (error) {
             toast.error('위치 확인에 실패했습니다');
         } finally {
@@ -120,8 +123,10 @@ export default function AuthFlow({ tokenId, sessionData, onSuccess }: AuthFlowPr
                 tokenId
             );
 
+            haptic('success');
             onSuccess();
         } catch (error: any) {
+            haptic('error');
             toast.error(error.message || '인증에 실패했습니다');
             setStep('code');
         } finally {
@@ -236,6 +241,7 @@ export default function AuthFlow({ tokenId, sessionData, onSuccess }: AuthFlowPr
                                 onChange={(e) => {
                                     const value = e.target.value.replace(/\D/g, '');
                                     setAuthData((prev) => ({ ...prev, accessCode: value }));
+                                    if (value.length > authData.accessCode.length) haptic('tap');
 
                                     // Auto-submit on 4 digits
                                     if (value.length === 4) {

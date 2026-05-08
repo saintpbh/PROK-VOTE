@@ -1,8 +1,13 @@
 'use client';
 
+import { useEffect } from 'react';
 import Card from '../ui/Card';
+import haptic from '@/lib/haptic';
 
 export default function CompletedScreen() {
+    useEffect(() => {
+        haptic('success');
+    }, []);
     return (
         <div className="w-full max-w-md">
             <Card>
