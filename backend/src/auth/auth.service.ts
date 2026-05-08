@@ -66,7 +66,22 @@ export class AuthService {
         // 5. Verify access code
         this.verifyAccessCode(session, dto.accessCode);
 
-        // 6. Create or update voter record
+        // 6. Enforce 1 device = 1 QR per session
+        // Check if this device fingerprint already has a voter record with a DIFFERENT token in this session
+        const existingDeviceVoter = await this.voterRepository.findOne({
+            where: {
+                sessionId: session.id,
+                deviceFingerprint: dto.deviceFingerprint,
+            },
+        });
+
+        if (existingDeviceVoter && existingDeviceVoter.tokenId !== dto.tokenId) {
+            throw new UnauthorizedException(
+                '이 기기에서 이미 다른 QR로 인증되었습니다. 1기기 1QR 원칙에 따라 접속이 제한됩니다.'
+            );
+        }
+
+        // 7. Create or update voter record
         let voter = await this.voterRepository.findOne({
             where: { tokenId: dto.tokenId },
         });
@@ -90,7 +105,7 @@ export class AuthService {
             });
             await this.voterRepository.save(voter);
         } else {
-            // Device lock: reject access from different device
+            // Device lock: reject access from different device (1 QR = 1 device)
             if (voter.deviceFingerprint && voter.deviceFingerprint !== dto.deviceFingerprint) {
                 throw new UnauthorizedException('이미 사용된 QR입니다. 진행팀에 문의하세요.');
             }
