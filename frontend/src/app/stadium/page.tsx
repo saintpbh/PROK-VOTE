@@ -328,7 +328,7 @@ function StadiumContent() {
                             </div>
                         )}
 
-                        {/* 선택형 결과 */}
+                        {/* 선택형 결과 (단일선택) */}
                         {stats.type === 'MULTIPLE_CHOICE' && (
                             <div className="grid grid-cols-1 gap-6 w-full max-w-5xl mx-auto">
                                 {stats.options && stats.options.map((option: string, index: number) => {
@@ -376,6 +376,79 @@ function StadiumContent() {
                                 })}
                             </div>
                         )}
+
+                        {/* 복수선택 결과 (MULTIPLE_CHOICE_MULTI) */}
+                        {stats.type === 'MULTIPLE_CHOICE_MULTI' && (() => {
+                            // Parse comma-joined voteCounts into per-option counts
+                            const optionCounts: Record<string, number> = {};
+                            if (stats.options) {
+                                stats.options.forEach((opt: string) => { optionCounts[opt] = 0; });
+                            }
+                            if (stats.voteCounts) {
+                                Object.entries(stats.voteCounts).forEach(([key, count]) => {
+                                    // Each key may be "옵션A, 옵션B" — split and distribute
+                                    const parts = key.split(',').map((s: string) => s.trim());
+                                    parts.forEach((part: string) => {
+                                        if (part) {
+                                            optionCounts[part] = (optionCounts[part] || 0) + (count as number);
+                                        }
+                                    });
+                                });
+                            }
+                            // Total individual selections (not total voters)
+                            const totalSelections = Object.values(optionCounts).reduce((a, b) => a + b, 0);
+                            const maxCount = Math.max(...Object.values(optionCounts), 0);
+
+                            return (
+                                <div className="grid grid-cols-1 gap-6 w-full max-w-5xl mx-auto">
+                                    <div className="text-center mb-2 opacity-50 text-lg">
+                                        복수선택 · 총 {stats.totalVotes || 0}명 투표
+                                    </div>
+                                    {(stats.options || Object.keys(optionCounts)).map((option: string, index: number) => {
+                                        const count = optionCounts[option] || 0;
+                                        const percentage = totalSelections > 0 ? (count / totalSelections) * 100 : 0;
+                                        const isWinner = count > 0 && count === maxCount;
+
+                                        return (
+                                            <div
+                                                key={index}
+                                                className={`relative flex items-center p-6 rounded-2xl overflow-hidden border ${isWinner ? 'shadow-lg' : 'border-white/10'}`}
+                                                style={{
+                                                    backgroundColor: isWinner ? `rgba(var(--primary), 0.1)` : `rgba(var(--surface), 0.5)`,
+                                                    borderColor: isWinner ? `rgba(var(--primary), 0.4)` : undefined,
+                                                }}
+                                            >
+                                                <div
+                                                    className="absolute left-0 top-0 bottom-0 transition-all duration-1000"
+                                                    style={{
+                                                        width: `${percentage}%`,
+                                                        backgroundColor: isWinner ? `rgba(var(--primary), 0.2)` : `rgba(var(--primary), 0.05)`,
+                                                    }}
+                                                />
+                                                <div className="relative z-10 flex justify-between items-center w-full">
+                                                    <div className="flex items-center gap-6">
+                                                        <div
+                                                            className="w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold"
+                                                            style={{
+                                                                backgroundColor: isWinner ? `rgb(var(--primary))` : `rgba(var(--surface), 0.5)`,
+                                                                color: isWinner ? 'white' : undefined,
+                                                            }}
+                                                        >
+                                                            {isWinner ? '👑' : index + 1}
+                                                        </div>
+                                                        <span className="text-3xl font-medium truncate max-w-2xl">{option}</span>
+                                                    </div>
+                                                    <div className="flex flex-col items-end">
+                                                        <span className="text-4xl font-black tabular-nums">{count}</span>
+                                                        <span className="text-lg font-mono opacity-60">{percentage.toFixed(1)}%</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })()}
 
                         {/* 텍스트 입력 결과 */}
                         {stats.type === 'INPUT' && (
