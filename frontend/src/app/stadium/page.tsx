@@ -225,27 +225,27 @@ function StadiumContent() {
             </header>
 
             {/* Main Content */}
-            <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-8 w-full mx-auto"
-                style={{ minHeight: 'calc(100vh - 120px)', zoom: fontScale > 1 ? fontScale : undefined, maxWidth: fontScale > 2 ? '100%' : '90rem' }}>
+            <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 w-full mx-auto overflow-hidden"
+                style={{ minHeight: 'calc(100vh - 100px)', transform: fontScale > 1 ? `scale(${fontScale})` : undefined, transformOrigin: 'center center' }}>
 
                 {/* ===== PENDING / LOGO ===== */}
                 {(isPending || forceShowLogo) && (
-                    <div className="flex flex-col items-center justify-center space-y-10 animate-fade-in">
+                    <div className="flex flex-col items-center justify-center space-y-6 animate-fade-in">
                         {logoUrl && (
                             <div className="relative">
                                 <div className="absolute inset-0 bg-white/10 blur-3xl rounded-full" />
                                 <img
                                     src={`${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3011')}${logoUrl}`}
                                     alt="Logo"
-                                    className="relative max-h-[35vh] object-contain drop-shadow-2xl"
+                                    className="relative max-h-[30vh] object-contain drop-shadow-2xl"
                                 />
                             </div>
                         )}
-                        <div className="text-center space-y-4">
-                            <h2 className="text-7xl font-black text-white tracking-tight drop-shadow-xl">
+                        <div className="text-center space-y-3">
+                            <h2 className="text-8xl font-black text-white tracking-tight drop-shadow-xl">
                                 {sessionName || 'PROK VOTE'}
                             </h2>
-                            <div className="inline-flex items-center space-x-3 px-6 py-3 rounded-full border border-white/10"
+                            <div className="inline-flex items-center space-x-3 px-5 py-2.5 rounded-full border border-white/10"
                                 style={{ backgroundColor: `rgba(var(--surface), 0.5)` }}>
                                 <span className="relative flex h-3 w-3">
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
@@ -253,7 +253,7 @@ function StadiumContent() {
                                     <span className="relative inline-flex rounded-full h-3 w-3"
                                         style={{ backgroundColor: `rgb(var(--success))` }}></span>
                                 </span>
-                                <span className="text-xl font-light tracking-wide opacity-60">회의 진행 중</span>
+                                <span className="text-2xl font-light tracking-wide opacity-60">회의 진행 중</span>
                             </div>
                         </div>
                     </div>
@@ -261,24 +261,24 @@ function StadiumContent() {
 
                 {/* ===== SUBMITTED (안건 소개) ===== */}
                 {(!isPending && !forceShowLogo && currentStage === 'submitted' && stats) && (
-                    <div className="w-full max-w-5xl mx-auto flex flex-col items-center text-center animate-slide-in-bottom">
-                        <div className="mb-6 px-5 py-2 rounded-full text-sm font-bold tracking-widest"
+                    <div className="w-full max-w-6xl mx-auto flex flex-col items-center text-center animate-slide-in-bottom">
+                        <div className="mb-4 px-5 py-2 rounded-full text-lg font-bold tracking-widest"
                             style={{ backgroundColor: `rgba(var(--primary), 0.2)`, color: `rgb(var(--primary))`, border: `1px solid rgba(var(--primary), 0.3)` }}>
                             새 안건
                         </div>
-                        <h1 className="text-7xl md:text-8xl font-black text-white leading-tight mb-8 drop-shadow-2xl max-w-6xl break-keep">
+                        <h1 className="text-8xl md:text-9xl font-black text-white leading-tight mb-4 drop-shadow-2xl max-w-6xl break-keep">
                             {stats.title}
                         </h1>
-                        <div className="w-full h-px mb-10" style={{ background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.15), transparent)' }} />
+                        <div className="w-full h-px mb-6" style={{ background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.15), transparent)' }} />
                         {stats.description && (
-                            <div className="p-10 rounded-3xl max-w-4xl w-full shadow-2xl border border-white/10"
+                            <div className="p-8 rounded-3xl max-w-5xl w-full shadow-2xl border border-white/10"
                                 style={{ backgroundColor: `rgba(var(--surface), 0.5)` }}>
-                                <p className="text-3xl leading-relaxed font-light break-keep whitespace-pre-wrap opacity-90">
+                                <p className="text-4xl leading-relaxed font-light break-keep whitespace-pre-wrap opacity-90">
                                     {stats.description}
                                 </p>
                             </div>
                         )}
-                        <p className="mt-12 text-2xl animate-pulse font-medium opacity-50">투표 시작 대기 중...</p>
+                        <p className="mt-8 text-3xl animate-pulse font-medium opacity-50">투표 시작 대기 중...</p>
                     </div>
                 )}
 
@@ -288,12 +288,12 @@ function StadiumContent() {
                         <div className="absolute top-0 left-0 right-0 h-1.5 animate-gradient-x"
                             style={{ background: `linear-gradient(to right, rgb(var(--success)), rgb(var(--primary)), rgb(var(--accent)))` }} />
 
-                        <h2 className="text-4xl font-semibold mb-16 opacity-60">{stats.title}</h2>
+                        <h2 className="text-5xl font-semibold mb-8 opacity-60">{stats.title}</h2>
 
                         <div className="relative">
                             <div className="absolute inset-0 rounded-full blur-[80px] animate-pulse-slow"
                                 style={{ backgroundColor: `rgba(var(--primary), 0.25)` }} />
-                            <div className="relative w-[420px] h-[420px] rounded-full border-[6px] border-white/5 flex flex-col items-center justify-center shadow-2xl overflow-hidden"
+                            <div className="relative w-[380px] h-[380px] rounded-full border-[6px] border-white/5 flex flex-col items-center justify-center shadow-2xl overflow-hidden"
                                 style={{ backgroundColor: `rgba(var(--surface), 0.5)` }}>
                                 <div className="absolute inset-0 border-[6px] rounded-full animate-spin-slow-reverse opacity-30"
                                     style={{ borderColor: `rgb(var(--primary)) transparent transparent transparent` }} />
@@ -305,7 +305,7 @@ function StadiumContent() {
                             </div>
                         </div>
 
-                        <div className="mt-14 text-3xl font-light text-white animate-bounce-slight opacity-70">
+                        <div className="mt-8 text-3xl font-light text-white animate-bounce-slight opacity-70">
                             투표가 진행 중입니다
                         </div>
                     </div>
@@ -329,10 +329,10 @@ function StadiumContent() {
 
                 {/* ===== ANNOUNCED (결과 발표) ===== */}
                 {(!isPending && !forceShowLogo && currentStage === 'announced' && stats) && (
-                    <div className="w-full max-w-7xl mx-auto animate-slide-in-bottom flex flex-col h-full">
-                        <div className="text-center mb-12">
-                            <h2 className="text-6xl font-bold text-white mb-3">{stats.title}</h2>
-                            <span className="px-5 py-1.5 rounded-full text-sm font-bold tracking-wider border"
+                    <div className="w-full max-w-[95vw] mx-auto animate-slide-in-bottom flex flex-col">
+                        <div className="text-center mb-6">
+                            <h2 className="text-7xl font-bold text-white mb-2">{stats.title}</h2>
+                            <span className="px-5 py-1.5 rounded-full text-lg font-bold tracking-wider border"
                                 style={{ backgroundColor: `rgba(var(--success), 0.15)`, color: `rgb(var(--success))`, borderColor: `rgba(var(--success), 0.25)` }}>
                                 최종 결과
                             </span>
@@ -489,15 +489,15 @@ function StadiumContent() {
                         )}
 
                         {/* 투표율 & 참여 */}
-                        <div className="mt-12 flex justify-center gap-12 opacity-70">
+                        <div className="mt-6 flex justify-center gap-12 opacity-70">
                             <div className="text-center">
-                                <div className="text-sm tracking-widest mb-1 opacity-60">투표율</div>
-                                <div className="text-3xl font-bold">{(stats.turnoutPercentage || 0).toFixed(1)}%</div>
+                                <div className="text-lg tracking-widest mb-1 opacity-60">투표율</div>
+                                <div className="text-4xl font-bold">{(stats.turnoutPercentage || 0).toFixed(1)}%</div>
                             </div>
                             <div className="w-px bg-white/10" />
                             <div className="text-center">
-                                <div className="text-sm tracking-widest mb-1 opacity-60">참여 / 전체</div>
-                                <div className="text-3xl font-bold">{stats.totalVotes || 0} <span className="text-2xl opacity-50">/ {stats.totalParticipants || 0}</span></div>
+                                <div className="text-lg tracking-widest mb-1 opacity-60">참여 / 전체</div>
+                                <div className="text-4xl font-bold">{stats.totalVotes || 0} <span className="text-3xl opacity-50">/ {stats.totalParticipants || 0}</span></div>
                             </div>
                         </div>
                     </div>
@@ -511,14 +511,14 @@ function StadiumContent() {
                     {showSizePicker && (
                         <div className="absolute bottom-14 right-0 p-3 rounded-2xl border border-white/10 shadow-2xl flex gap-2"
                             style={{ backgroundColor: `rgba(var(--card), 0.95)`, backdropFilter: 'blur(20px)' }}>
-                            {[{ scale: 1, label: 'x1' }, { scale: 2, label: 'x2' }, { scale: 3, label: 'x3' }, { scale: 4, label: 'x4' }, { scale: 5, label: 'x5' }].map((s) => (
+                            {[{ scale: 1, label: 'x1' }, { scale: 1.25, label: 'x2' }, { scale: 1.5, label: 'x3' }, { scale: 1.75, label: 'x4' }, { scale: 2, label: 'x5' }].map((s) => (
                                 <button
                                     key={s.scale}
                                     onClick={() => { setFontScale(s.scale); setShowSizePicker(false); }}
                                     className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all ${fontScale === s.scale ? 'ring-2 ring-white/50 scale-105' : 'hover:bg-white/10'}`}
                                     title={`글자 크기 ${s.label}`}
                                 >
-                                    <span className="text-base font-bold" style={{ fontSize: `${10 + s.scale * 3}px` }}>A</span>
+                                    <span className="font-bold" style={{ fontSize: `${10 + s.scale * 5}px` }}>A</span>
                                     <span className="text-[10px] font-medium opacity-70">{s.label}</span>
                                 </button>
                             ))}
