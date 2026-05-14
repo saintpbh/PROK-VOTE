@@ -32,6 +32,7 @@ interface SocketWithVoter extends Socket {
                 'http://localhost:3000',
                 process.env.FRONTEND_URL,
                 process.env.PRODUCTION_URL,
+                process.env.CUSTOM_DOMAIN_URL,
             ].filter(Boolean) as string[];
 
             console.log(`[Socket CORS] Origin: ${requestOrigin}, Allowed: ${allowedOrigins.join(', ')}`);

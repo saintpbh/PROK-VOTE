@@ -14,6 +14,7 @@ async function bootstrap() {
                 'http://localhost:3000',
                 configService.get('FRONTEND_URL'),
                 configService.get('PRODUCTION_URL'),
+                configService.get('CUSTOM_DOMAIN_URL'),
             ].filter(Boolean);
 
             // Normalize: remove trailing slash
