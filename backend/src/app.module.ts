@@ -47,6 +47,11 @@ import { AuditModule } from './audit/audit.module';
                 entities: [__dirname + '/**/*.entity{.ts,.js}'],
                 synchronize: configService.get('DATABASE_SYNCHRONIZE') === 'true' || configService.get('NODE_ENV') === 'development',
                 logging: configService.get('NODE_ENV') === 'development' || configService.get('DATABASE_LOGGING') === 'true',
+                // Connection pool for 100+ concurrent users
+                extra: {
+                    max: 20,
+                    connectionTimeoutMillis: 5000,
+                },
             }),
         }),
 
