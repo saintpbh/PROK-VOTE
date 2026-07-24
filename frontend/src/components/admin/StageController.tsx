@@ -308,7 +308,11 @@ export default function StageController({
                                     </Button>
                                 )}
                                 <Button
-                                    onClick={onClose}
+                                    onClick={() => {
+                                        // Auto-reset stadium display when closing agenda
+                                        socketService.emit('stadium:control', { sessionId, action: 'reset' });
+                                        onClose?.();
+                                    }}
                                     disabled={currentStage !== 'announced' && currentStage !== 'ended'}
                                     variant="outline"
                                     fullWidth

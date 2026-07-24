@@ -37,6 +37,13 @@ class SocketService {
         }
 
         logger.debug('[Socket] Connecting to:', SOCKET_URL);
+        // iOS Safari has a WebKit bug with WebSocket upgrades on HTTP/2 (Cloud Run).
+        // Forcing iOS to use polling-only prevents hanging connections.
+        const isIOS = typeof navigator !== 'undefined' && (
+            /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+        );
+
         this.socket = io(SOCKET_URL, {
             autoConnect: true,
             reconnection: true,
@@ -44,7 +51,8 @@ class SocketService {
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
             timeout: 20000,
-            transports: ['websocket', 'polling'],
+            transports: isIOS ? ['polling'] : ['polling', 'websocket'],
+            upgrade: !isIOS,
             auth: (cb) => {
                 const adminToken = typeof window !== 'undefined' ? localStorage.getItem('admin_access_token') : null;
                 const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;

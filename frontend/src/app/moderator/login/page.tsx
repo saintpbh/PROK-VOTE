@@ -1,15 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 
-export default function ModeratorLoginPage() {
+function ModeratorLoginForm() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const isExpired = searchParams.get('reason') === 'expired';
+
+    useEffect(() => {
+        if (isExpired) {
+            toast.error('세션이 만료되었습니다. 다시 로그인해주세요.', { duration: 5000 });
+        }
+    }, [isExpired]);
 
     useEffect(() => {
         if (api.isAdminAuthenticated()) {
@@ -60,6 +68,13 @@ export default function ModeratorLoginPage() {
                     <p className="text-slate-400 text-sm">투표관리자 로그인</p>
                 </div>
 
+                {/* Expired session notice */}
+                {isExpired && (
+                    <div className="mb-4 px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-sm text-center">
+                        ⚠️ 세션이 만료되었습니다. 다시 로그인해주세요.
+                    </div>
+                )}
+
                 {/* Login Card */}
                 <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-2xl p-8 shadow-2xl">
                     <form onSubmit={handleLogin} className="space-y-5">
@@ -107,5 +122,13 @@ export default function ModeratorLoginPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function ModeratorLoginPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-slate-900" />}>
+            <ModeratorLoginForm />
+        </Suspense>
     );
 }

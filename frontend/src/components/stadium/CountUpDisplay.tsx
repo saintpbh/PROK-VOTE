@@ -17,7 +17,7 @@ export default function CountUpDisplay({ title, value, color, borderColor, icon 
     const { number } = useSpring({
         from: { number: 0 },
         number: hasAnimated ? value : 0,
-        config: { duration: 800, tension: 120, friction: 14 },
+        config: { duration: 350, tension: 180, friction: 12 },
     });
 
     useEffect(() => {

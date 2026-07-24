@@ -285,22 +285,10 @@ class QRPDFGenerator {
             }
         }
 
-        // Download
+        // Download — use jsPDF's native save() for reliable filename across all browsers
         const timestamp = new Date().toISOString().split('T')[0];
-        const safeName = (sessionName || 'prok-vote').replace(/[^a-zA-Z0-9\uAC00-\uD7A3]/g, '-');
-        const filename = `${safeName}-QR-${timestamp}.pdf`;
-        const pdfBlob = pdf.output('blob');
-        const blobUrl = URL.createObjectURL(pdfBlob);
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = filename;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        setTimeout(() => {
-            document.body.removeChild(link);
-            URL.revokeObjectURL(blobUrl);
-        }, 500);
+        const safeName = (sessionName || 'PROK-Vote').replace(/[^a-zA-Z0-9\uAC00-\uD7A3]/g, '_');
+        pdf.save(`${safeName}_QR_${timestamp}.pdf`);
     }
 
     /**

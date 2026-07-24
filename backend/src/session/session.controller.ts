@@ -171,6 +171,14 @@ export class SessionController {
         @Req() req: any
     ) {
         const agenda = await this.sessionService.updateAgendaStage(id, dto.stage, req, req.user);
+        
+        // Broadcast the stage change to all voters via Gateway
+        try {
+            await this.votingGateway.broadcastStageChanged(id, dto.stage, agenda);
+        } catch (err) {
+            console.error('[HTTP Controller] Failed to broadcast stage change:', err.message);
+        }
+
         return {
             success: true,
             agenda,

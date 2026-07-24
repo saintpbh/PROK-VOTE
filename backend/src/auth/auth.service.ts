@@ -75,10 +75,9 @@ export class AuthService {
             },
         });
 
+        // Temporary bypass for 1 device = 1 QR per session
         if (existingDeviceVoter && existingDeviceVoter.tokenId !== dto.tokenId) {
-            throw new UnauthorizedException(
-                '이 기기에서 이미 다른 QR로 인증되었습니다. 1기기 1QR 원칙에 따라 접속이 제한됩니다.'
-            );
+            console.warn(`[AuthService] Bypass: Device ${dto.deviceFingerprint} already has a voter record with tokenId ${existingDeviceVoter.tokenId} (new requested: ${dto.tokenId})`);
         }
 
         // 7. Create or update voter record
@@ -105,9 +104,9 @@ export class AuthService {
             });
             await this.voterRepository.save(voter);
         } else {
-            // Device lock: reject access from different device (1 QR = 1 device)
+            // Temporary bypass for 1 QR = 1 device lock
             if (voter.deviceFingerprint && voter.deviceFingerprint !== dto.deviceFingerprint) {
-                throw new UnauthorizedException('이미 사용된 QR입니다. 진행팀에 문의하세요.');
+                console.warn(`[AuthService] Bypass: Voter ${voter.id} deviceFingerprint mismatch. DB: ${voter.deviceFingerprint}, Current: ${dto.deviceFingerprint}`);
             }
         }
 

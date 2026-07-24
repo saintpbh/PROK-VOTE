@@ -2,13 +2,14 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
+import cors from 'cors';
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
     const configService = app.get(ConfigService);
 
-    // Enable CORS for frontend
-    app.enableCors({
+    // Enable CORS middleware directly to ensure headers are sent on exceptions/401s
+    app.use(cors({
         origin: (requestOrigin, callback) => {
             const rawAllowedOrigins = [
                 'http://localhost:3000',
@@ -18,7 +19,7 @@ async function bootstrap() {
             ].filter(Boolean);
 
             // Normalize: remove trailing slash
-            const allowedOrigins = rawAllowedOrigins.map(o => o.replace(/\/$/, ''));
+            const allowedOrigins = rawAllowedOrigins.map(o => o?.replace(/\/$/, ''));
             const normalizedOrigin = requestOrigin ? requestOrigin.replace(/\/$/, '') : null;
 
             // Allow any local network IP for local development/testing
@@ -38,7 +39,8 @@ async function bootstrap() {
             }
         },
         credentials: true,
-    });
+    }));
+
 
     // Global validation pipe
     app.useGlobalPipes(

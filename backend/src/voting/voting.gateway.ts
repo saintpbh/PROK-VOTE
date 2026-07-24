@@ -35,8 +35,6 @@ interface SocketWithVoter extends Socket {
                 process.env.CUSTOM_DOMAIN_URL,
             ].filter(Boolean) as string[];
 
-            console.log(`[Socket CORS] Origin: ${requestOrigin}, Allowed: ${allowedOrigins.join(', ')}`);
-
             const cleanOrigin = requestOrigin?.replace(/\/$/, '');
             const cleanAllowed = allowedOrigins.map(o => o.replace(/\/$/, ''));
 
@@ -58,6 +56,11 @@ interface SocketWithVoter extends Socket {
         },
         credentials: true,
     },
+    // Support upgrading to websocket alongside polling for better real-time synchronization.
+    transports: ['polling', 'websocket'],
+    allowUpgrades: true,
+    pingTimeout: 60000,
+    pingInterval: 25000,
 })
 export class VotingGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @WebSocketServer()
@@ -107,8 +110,11 @@ export class VotingGateway implements OnGatewayConnection, OnGatewayDisconnect {
                 console.log(`[Gateway] Client ${client.id} connected (Anonymous/Display)`);
             }
         } catch (error) {
-            console.warn(`[Gateway] Client ${client.id} CONNECTION REJECTED: ${error.message}`);
-            client.disconnect();
+            console.warn(`[Gateway] Client ${client.id} AUTH FAILED: ${error.message} — allowing anonymous connection`);
+            // Don't disconnect — allow anonymous connection so the client can
+            // still join a session room and receive stage:changed broadcasts.
+            // The client will re-authenticate via HTTP and reconnect with a valid token.
+            client.emit('auth:required', { reason: error.message });
         }
     }
 
@@ -352,6 +358,13 @@ export class VotingGateway implements OnGatewayConnection, OnGatewayDisconnect {
             timestamp: new Date().toISOString(),
         });
 
+        // Automatically reset stadium display to initial screen when vote ends
+        console.log(`[Gateway] Broadcasting stadium:control (reset) to room ${room} — auto-reset after vote:end`);
+        this.server.to(room).emit('stadium:control', {
+            action: 'reset',
+            timestamp: new Date().toISOString(),
+        });
+
         return {
             success: true,
             message: 'Voting ended successfully',
@@ -499,5 +512,41 @@ export class VotingGateway implements OnGatewayConnection, OnGatewayDisconnect {
             message: 'Participants reset by admin',
             timestamp: new Date().toISOString(),
         });
+    }
+
+    /**
+     * Broadcast stage changes and child events (e.g. ended, announced)
+     * Useful when updates are triggered via HTTP endpoints rather than socket signals
+     */
+    async broadcastStageChanged(agendaId: string, stage: string, updatedAgenda: any) {
+        const room = `session:${updatedAgenda.sessionId}`.toLowerCase();
+        
+        console.log(`[Gateway] Broadcasting HTTP-triggered stage change: ${stage} for agenda ${agendaId} to room ${room}`);
+        
+        this.server.to(room).emit('stage:changed', {
+            agendaId,
+            stage,
+            timestamp: new Date().toISOString(),
+        });
+
+        if (stage === 'ended') {
+            this.server.to(room).emit('vote:ended', {
+                agendaId,
+                endedAt: updatedAgenda.endedAt || new Date().toISOString(),
+            });
+            this.server.to(room).emit('stadium:control', {
+                action: 'reset',
+                timestamp: new Date().toISOString(),
+            });
+        }
+
+        if (stage === 'announced') {
+            const stats = await this.votingService.getAgendaStatistics(agendaId);
+            this.server.to(room).emit('result:published', {
+                agendaId,
+                stats,
+                announcedAt: new Date().toISOString(),
+            });
+        }
     }
 }

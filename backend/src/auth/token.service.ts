@@ -1,7 +1,7 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Token } from '../entities';
+import { Token, Session } from '../entities';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -9,6 +9,8 @@ export class TokenService {
     constructor(
         @InjectRepository(Token)
         private tokenRepository: Repository<Token>,
+        @InjectRepository(Session)
+        private sessionRepository: Repository<Session>,
     ) { }
 
     /**
@@ -18,6 +20,12 @@ export class TokenService {
      * @returns Array of generated token UUIDs
      */
     async generateTokens(sessionId: string, count: number): Promise<string[]> {
+        // Validate session exists before attempting to insert tokens (prevents FK constraint violation)
+        const session = await this.sessionRepository.findOne({ where: { id: sessionId } });
+        if (!session) {
+            throw new NotFoundException(`세션을 찾을 수 없습니다 (id: ${sessionId}). 세션이 삭제되었거나 잘못된 세션 ID입니다.`);
+        }
+
         const tokens: Token[] = [];
 
         for (let i = 0; i < count; i++) {
@@ -51,8 +59,9 @@ export class TokenService {
             throw new UnauthorizedException('이 QR 코드는 만료되었습니다. 진행팀에 문의하세요.');
         }
 
+        // Temporary bypass for 1 device = 1 QR check per user request
         if (token.deviceFingerprint && token.deviceFingerprint !== fingerprint) {
-            throw new UnauthorizedException('이미 사용된 QR입니다. 진행팀에 문의하세요.');
+            console.warn(`[TokenService] Bypass: Token ${tokenId} was bound to device ${token.deviceFingerprint}, but now accessed by ${fingerprint}`);
         }
 
         token.deviceFingerprint = fingerprint;

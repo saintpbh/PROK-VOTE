@@ -7,6 +7,7 @@ import AuthFlow from '@/components/voter/AuthFlow';
 import WaitingRoom from '@/components/voter/WaitingRoom';
 import VotingPanel from '@/components/voter/VotingPanel';
 import CompletedScreen from '@/components/voter/CompletedScreen';
+import ResultPanel from '@/components/voter/ResultPanel';
 import api from '@/lib/api';
 import socketService from '@/lib/socket';
 import haptic from '@/lib/haptic';
@@ -14,7 +15,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useSessionStore } from '@/store/sessionStore';
 import toast from 'react-hot-toast';
 
-type VoterState = 'loading' | 'auth' | 'waiting' | 'voting' | 'completed';
+type VoterState = 'loading' | 'auth' | 'waiting' | 'voting' | 'completed' | 'results';
 
 const LOADING_MESSAGES = [
     { text: '투표권을 확인하고 있습니다...', icon: '🔍' },
@@ -53,24 +54,35 @@ export default function VotePage() {
     const [tokenData, setTokenData] = useState<any>(null);
     const [isSocketConnected, setIsSocketConnected] = useState(false);
     const [isTabBlocked, setIsTabBlocked] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const { isAuthenticated, voterId, sessionId } = useAuthStore();
     const { currentAgenda, setCurrentAgenda } = useSessionStore();
     const [theme, setTheme] = useState<string>('classic');
     const socketInitialized = useRef(false);
+    const [isTokenValidated, setIsTokenValidated] = useState(false);
+    
+    // Unique tabId to avoid self-blocking in BroadcastChannel loops
+    const tabId = useRef(typeof window !== 'undefined' ? Math.random().toString(36).substring(2) + Date.now().toString(36) : 'ssr');
 
     // Multi-tab prevention: block duplicate tabs for the same QR token
+    // BroadcastChannel is not supported on iOS < 15.4 — guard with typeof check
     useEffect(() => {
         if (!tokenId) return;
+        if (typeof BroadcastChannel === 'undefined') return; // iOS 15.3 이하 skip
+
         const channel = new BroadcastChannel(`prok-vote-${tokenId}`);
         // Announce this tab is active
-        channel.postMessage({ type: 'TAB_CHECK' });
+        channel.postMessage({ type: 'TAB_CHECK', senderId: tabId.current });
 
         channel.onmessage = (e) => {
-            if (e.data.type === 'TAB_CHECK') {
+            // Ignore messages from ourselves to prevent self-collisions or loop-backs
+            if (e.data?.senderId === tabId.current) return;
+
+            if (e.data?.type === 'TAB_CHECK') {
                 // Another tab is checking — tell it we exist
-                channel.postMessage({ type: 'TAB_EXISTS' });
+                channel.postMessage({ type: 'TAB_EXISTS', senderId: tabId.current });
             }
-            if (e.data.type === 'TAB_EXISTS') {
+            if (e.data?.type === 'TAB_EXISTS') {
                 // This tab is the duplicate — block it
                 setIsTabBlocked(true);
                 toast.error('다른 탭에서 이미 투표 화면이 열려 있습니다.', { duration: 10000 });
@@ -79,6 +91,7 @@ export default function VotePage() {
 
         return () => channel.close();
     }, [tokenId]);
+
 
     const checkVoteStatus = useCallback(async () => {
         if (!voterId || !sessionId) {
@@ -95,11 +108,6 @@ export default function VotePage() {
 
             if (!activeAgenda) {
                 activeAgenda = agendas.find((a: any) => a.stage === 'submitted');
-            }
-
-            if (!activeAgenda) {
-                const reversedAgendas = [...agendas].reverse();
-                activeAgenda = reversedAgendas.find((a: any) => a.stage === 'announced' || a.stage === 'ended');
             }
 
             if (activeAgenda) {
@@ -119,54 +127,107 @@ export default function VotePage() {
                     setState('waiting');
                 }
             } else {
-                setCurrentAgenda(null);
+                // On refresh, if there is no active voting/submitted agenda, remain in waiting room.
+                // Do NOT automatically force pop up old announced results on page refresh.
+                const reversedAgendas = [...agendas].reverse();
+                const lastAgenda = reversedAgendas.find((a: any) => a.stage === 'announced' || a.stage === 'ended');
+                if (lastAgenda) {
+                    setCurrentAgenda(lastAgenda);
+                } else {
+                    setCurrentAgenda(null);
+                }
                 setState('waiting');
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('[VotePage] Failed to check vote status:', error);
+            // If the server rejected our token (401), clear stale auth and force re-login
+            if (error?.status === 401) {
+                console.warn('[VotePage] Token expired — clearing auth and forcing re-login');
+                useAuthStore.getState().logout();
+                localStorage.removeItem('auth-storage');
+                localStorage.removeItem('access_token');
+                socketInitialized.current = false;
+                setState('auth');
+                return;
+            }
             setState('waiting');
         }
     }, [voterId, sessionId, setCurrentAgenda]);
 
     const validateToken = async () => {
         try {
+            setError(null);
             const response = await api.getToken(tokenId);
 
             if (!response.success) {
-                toast.error('유효하지 않은 QR 코드입니다');
+                setError(response.message || '유효하지 않은 QR 코드입니다');
+                toast.error(response.message || '유효하지 않은 QR 코드입니다');
+                setState('auth');
                 return;
             }
 
-            setTokenData(response.token);
+            let fetchedToken = response.token;
+            const tokenSessionId = fetchedToken.sessionId || fetchedToken.session?.id;
 
-            if (response.token.isRevoked) {
+            // Ensure session name is loaded by fetching public session if missing
+            if (tokenSessionId && (!fetchedToken.session || !fetchedToken.session.name)) {
+                try {
+                    const pubSessionResp = await api.getPublicSession(tokenSessionId);
+                    if (pubSessionResp.success && pubSessionResp.session) {
+                        fetchedToken = {
+                            ...fetchedToken,
+                            session: {
+                                ...(fetchedToken.session || {}),
+                                ...pubSessionResp.session,
+                            },
+                        };
+                    }
+                } catch (e) {
+                    console.error('[VotePage] Failed to fetch public session details:', e);
+                }
+            }
+
+            setTokenData(fetchedToken);
+
+            if (fetchedToken.isRevoked) {
+                setError('이 토큰은 취소되었습니다. 재인증이 필요합니다.');
                 toast.error('이 토큰은 취소되었습니다. 재인증이 필요합니다.');
                 setState('auth');
                 return;
             }
 
-            const tokenSessionId = response.token.sessionId || response.token.session?.id;
-
             // Session mismatch: voter has auth from a different session
             if (isAuthenticated && voterId && sessionId && tokenSessionId && sessionId !== tokenSessionId) {
                 console.log('[VotePage] Session mismatch: stored=', sessionId, 'token=', tokenSessionId, '→ forcing re-auth');
+                // Clear ALL stale auth data
                 useAuthStore.getState().logout();
+                localStorage.removeItem('auth-storage');
+                localStorage.removeItem('access_token');
+                // Disconnect stale socket and reset initialization flag
+                socketService.disconnect();
+                socketInitialized.current = false;
+                setIsSocketConnected(false);
                 setState('auth');
                 return;
             }
 
             if (isAuthenticated && voterId) {
+                setIsTokenValidated(true);
                 checkVoteStatus();
             } else {
+                setIsTokenValidated(true); // Still marked as validated so the flow can continue (e.g. showing login page)
                 setState('auth');
             }
         } catch (error: any) {
+            setIsTokenValidated(false);
+            setError(error.message || '토큰 확인에 실패했습니다');
             toast.error(error.message || '토큰 확인에 실패했습니다');
             setState('auth');
         }
     };
 
     useEffect(() => {
+        setIsTokenValidated(false);
         validateToken();
     }, [tokenId]);
 
@@ -182,11 +243,11 @@ export default function VotePage() {
 
     // ── Socket connection & event listeners ──
     useEffect(() => {
-        if (!isAuthenticated || !sessionId) return;
+        if (!isTokenValidated || !isAuthenticated || !sessionId) return;
         if (socketInitialized.current) return;
         socketInitialized.current = true;
 
-        const socket = socketService.connect();
+        const socket = socketService.connect(true);
 
         // ── Register ALL event listeners BEFORE joining session ──
         const onConnect = () => {
@@ -194,6 +255,8 @@ export default function VotePage() {
             setIsSocketConnected(true);
             // Re-join session on reconnect
             socketService.joinSession(sessionId, voterId || undefined, 'voter');
+            // Sync state on reconnect — catches missed events while socket was down
+            checkVoteStatus();
         };
 
         const onDisconnect = (reason: string) => {
@@ -205,24 +268,21 @@ export default function VotePage() {
             console.log(`[VotePage] stage:changed received: ${stage} for ${agendaId}`);
 
             if (stage === 'voting') {
-                haptic('voteStart');
+                try { haptic('voteStart'); } catch(e) {}
                 toast.success('투표가 시작되었습니다!');
-                setState('voting');
                 checkVoteStatus();
             } else if (stage === 'submitted') {
-                haptic('press');
+                try { haptic('press'); } catch(e) {}
                 toast('새 안건이 상정되었습니다', { icon: '📋' });
-                setState('waiting');
                 checkVoteStatus();
             } else if (stage === 'ended') {
-                haptic('voteEnd');
-                setState(prev => prev === 'voting' ? 'completed' : 'waiting');
-                checkVoteStatus();
+                try { haptic('voteEnd'); } catch(e) {}
+                toast('투표가 종료되었습니다', { icon: '🔒' });
+                setState('completed');
             } else if (stage === 'announced') {
-                haptic('success');
+                try { haptic('success'); } catch(e) {}
                 toast('결과가 발표되었습니다', { icon: '📊' });
-                setState('waiting');
-                checkVoteStatus();
+                setState('results');
             }
         };
 
@@ -240,8 +300,16 @@ export default function VotePage() {
         };
 
         const onAuthRequired = () => {
-            console.warn('[VotePage] auth:required received');
-            toast.error('재인증이 필요합니다');
+            console.warn('[VotePage] auth:required received — clearing stale auth and forcing re-login');
+            // Clear all stale auth data
+            useAuthStore.getState().logout();
+            localStorage.removeItem('auth-storage');
+            localStorage.removeItem('access_token');
+            // Physically disconnect the socket to clean up invalid connections
+            socketService.disconnect();
+            socketInitialized.current = false;
+            setIsSocketConnected(false);
+            toast.error('인증이 만료되었습니다. 다시 인증해주세요.');
             setState('auth');
         };
 
@@ -252,7 +320,7 @@ export default function VotePage() {
             if (settings.accessCode) {
                 console.warn('[VotePage] Access code changed — forcing re-authentication');
                 haptic('warning');
-                toast('접속 코드가 변경되었습니다.\n새 코드로 다시 인증해주세요.', {
+                toast('참여 코드가 변경되었습니다.\n새 코드로 다시 인증해주세요.', {
                     icon: '🔒',
                     duration: 5000,
                 });
@@ -302,6 +370,28 @@ export default function VotePage() {
             socket.off('session:settings:update', onSettingsUpdate);
             socketInitialized.current = false;
         };
+    }, [isTokenValidated, isAuthenticated, sessionId, voterId, checkVoteStatus]);
+
+    // ── Page Visibility: sync state when screen wakes up from lock ──
+    useEffect(() => {
+        if (!isAuthenticated || !sessionId) return;
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                console.log('[VotePage] Screen unlocked — syncing vote state');
+                // Ensure socket is connected; reconnect if dropped during sleep
+                const socket = socketService.getSocket();
+                if (!socket?.connected) {
+                    socketService.connect();
+                    socketService.joinSession(sessionId, voterId || undefined, 'voter');
+                }
+                // Fetch current agenda state via HTTP — catches missed WebSocket events
+                checkVoteStatus();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
     }, [isAuthenticated, sessionId, voterId, checkVoteStatus]);
 
     const handleAuthSuccess = () => {
@@ -310,7 +400,7 @@ export default function VotePage() {
     };
 
     return (
-        <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4 transition-colors duration-500" data-theme={theme}>
+        <div className="min-h-[100dvh] w-full bg-background text-foreground flex flex-col items-center justify-start sm:justify-center p-4 pt-6 pb-40 overflow-y-auto transition-colors duration-500" data-theme={theme}>
             <div className="fixed inset-0 bg-gradient-to-br from-primary/10 via-background to-secondary/10 -z-10" />
 
             {/* Socket Status Indicator */}
@@ -320,6 +410,24 @@ export default function VotePage() {
                     {isSocketConnected ? 'Live' : 'Offline'}
                 </span>
             </div>
+
+            {/* Error Screen */}
+            {error && (
+                <div className="fixed inset-0 bg-background flex flex-col items-center justify-center z-[90] p-8">
+                    <div className="fixed inset-0 bg-gradient-to-br from-primary/10 via-background to-secondary/10 -z-10" />
+                    <div className="text-center space-y-6 max-w-sm w-full p-8 bg-black/20 backdrop-blur-md rounded-2xl border border-white/10">
+                        <div className="text-6xl animate-bounce">⚠️</div>
+                        <h1 className="text-2xl font-black text-white">QR 코드 오류</h1>
+                        <p className="text-muted-foreground text-sm leading-relaxed">{error}</p>
+                        <button
+                            onClick={() => window.location.href = '/'}
+                            className="w-full py-3 px-4 rounded-xl bg-primary hover:bg-primary/80 text-white font-bold transition-all"
+                        >
+                            홈으로 돌아가기
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Blocked Tab Screen */}
             {isTabBlocked && (
@@ -401,7 +509,15 @@ export default function VotePage() {
             )}
 
             {state === 'completed' && (
-                <CompletedScreen />
+                <CompletedScreen stage={currentAgenda?.stage} />
+            )}
+
+            {state === 'results' && currentAgenda && (
+                <ResultPanel
+                    agendaId={currentAgenda.id}
+                    agendaTitle={currentAgenda.title}
+                    onClose={() => setState('waiting')}
+                />
             )}
         </div>
     );

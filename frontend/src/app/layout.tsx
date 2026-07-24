@@ -1,7 +1,8 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { Toaster } from 'react-hot-toast';
+import ServiceWorkerCleaner from '@/components/ServiceWorkerCleaner';
 
 const inter = Inter({
     subsets: ['latin'],
@@ -11,13 +12,18 @@ const inter = Inter({
 export const metadata: Metadata = {
     title: 'PROK Vote - Real-Time Voting System',
     description: 'Enterprise-grade on-site electronic voting platform',
-    manifest: '/manifest.json',
     icons: {
         icon: '/favicon.ico',
         apple: '/icon-192.png',
     },
+};
+
+export const viewport: Viewport = {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
     themeColor: '#1E3A8A',
-    viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
+    interactiveWidget: 'resizes-content',
 };
 
 export default function RootLayout({
@@ -28,6 +34,7 @@ export default function RootLayout({
     return (
         <html lang="ko">
             <body className={inter.className} suppressHydrationWarning>
+                <ServiceWorkerCleaner />
                 {children}
                 <Toaster position="top-center" />
             </body>

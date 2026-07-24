@@ -50,7 +50,8 @@ export default function AdminPage() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-primary/10 to-secondary/10">
-            <div className="container mx-auto px-4 py-8">
+            {/* Expanded layout width to support wider desktop and tablet views */}
+            <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* Header */}
                 <div className="mb-8 flex items-center justify-between">
                     <div>

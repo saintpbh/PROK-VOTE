@@ -7,17 +7,25 @@ import GlobalAuthFlow from '@/components/voter/GlobalAuthFlow';
 import WaitingRoom from '@/components/voter/WaitingRoom';
 import VotingPanel from '@/components/voter/VotingPanel';
 import CompletedScreen from '@/components/voter/CompletedScreen';
+import ResultPanel from '@/components/voter/ResultPanel';
 import api from '@/lib/api';
 import socketService from '@/lib/socket';
 import { useAuthStore } from '@/store/authStore';
 import { useSessionStore } from '@/store/sessionStore';
 import toast from 'react-hot-toast';
 
-type VoterState = 'loading' | 'auth' | 'waiting' | 'voting' | 'completed';
+type VoterState = 'loading' | 'auth' | 'waiting' | 'voting' | 'completed' | 'results';
 
 function GlobalVoteContent() {
     const searchParams = useSearchParams();
     const sessionIdFromUrl = searchParams.get('s');
+    const isDummy = searchParams.get('dummy') === 'true';
+    const dummyState = searchParams.get('state') || 'waiting'; // auth, waiting, voting, completed
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     const [state, setState] = useState<VoterState>('loading');
     const [sessionData, setSessionData] = useState<any>(null);
@@ -28,6 +36,7 @@ function GlobalVoteContent() {
     const activeSessionId = sessionIdFromUrl || storeSessionId;
 
     const checkVoteStatus = async () => {
+        if (isDummy) return;
         if (!voterId || !activeSessionId) {
             setState('waiting');
             return;
@@ -54,6 +63,10 @@ function GlobalVoteContent() {
 
                 if (activeAgenda.stage === 'voting') {
                     setState(hasVoted ? 'completed' : 'voting');
+                } else if (activeAgenda.stage === 'announced') {
+                    setState('results');
+                } else if (activeAgenda.stage === 'ended') {
+                    setState('completed');
                 } else {
                     setState('waiting');
                 }
@@ -67,6 +80,55 @@ function GlobalVoteContent() {
     };
 
     const initPage = async () => {
+        if (isDummy) {
+            setSessionData({
+                name: '제105회 총회 모의 테스트 세션',
+                voterTheme: 'classic'
+            });
+            setTheme('classic');
+            
+            if (dummyState === 'auth') {
+                setState('auth');
+            } else if (dummyState === 'waiting') {
+                setState('waiting');
+                setCurrentAgenda(null);
+            } else if (dummyState === 'voting') {
+                setState('voting');
+                setCurrentAgenda({
+                    id: 'dummy-agenda',
+                    title: '전자투표활용 동의 안건 (임시 테스트용)',
+                    type: 'MULTIPLE_CHOICE',
+                    stage: 'voting',
+                    options: [
+                        '1. 활용한다 (참여율을 높이기 위해 다음 총회부터 모바일 및 현장 전자투표 방식을 정식 의결 수단으로 인정하고 적극 도입하는 방안)',
+                        '2. 반대한다',
+                        '3. 기권 및 보류 방안 마련 요구'
+                    ]
+                } as any);
+            } else if (dummyState === 'completed') {
+                setState('completed');
+                setCurrentAgenda({
+                    id: 'dummy-agenda',
+                    stage: 'voting',
+                } as any);
+            } else if (dummyState === 'ended') {
+                setState('completed');
+                setCurrentAgenda({
+                    id: 'dummy-agenda',
+                    title: '전자투표활용 동의 안건 (임시 테스트용)',
+                    stage: 'ended',
+                } as any);
+            } else if (dummyState === 'results' || dummyState === 'announced') {
+                setState('results');
+                setCurrentAgenda({
+                    id: 'dummy-agenda',
+                    title: '전자투표활용 동의 안건 (임시 테스트용)',
+                    stage: 'announced',
+                } as any);
+            }
+            return;
+        }
+
         if (!activeSessionId) {
             toast.error('세션 정보가 없습니다.');
             return;
@@ -93,7 +155,7 @@ function GlobalVoteContent() {
 
     useEffect(() => {
         initPage();
-    }, [activeSessionId]);
+    }, [activeSessionId, isDummy, dummyState]);
 
     useEffect(() => {
         if (isAuthenticated && activeSessionId) {
@@ -145,7 +207,14 @@ function GlobalVoteContent() {
                 />
             )}
 
-            {state === 'completed' && <CompletedScreen />}
+            {state === 'completed' && <CompletedScreen stage={currentAgenda?.stage} />}
+
+            {state === 'results' && currentAgenda && (
+                <ResultPanel
+                    agendaId={currentAgenda.id}
+                    agendaTitle={currentAgenda.title}
+                />
+            )}
         </div>
     );
 }

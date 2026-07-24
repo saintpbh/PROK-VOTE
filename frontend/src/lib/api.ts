@@ -47,23 +47,41 @@ class ApiClient {
             (response) => response.data,
             (error: AxiosError) => {
                 const apiError = new Error() as any;
+                
                 if (error.response) {
                     // Server responded with error
                     apiError.message = (error.response.data as any)?.message || 'Server error';
                     apiError.status = error.response.status;
                     apiError.data = error.response.data;
-                } else if (error.request) {
-                    // Request made but no response
-                    apiError.message = 'No response from server';
-                    apiError.status = 0;
+
+                    // 401: admin token expired → clear token and redirect to login
+                    if (error.response.status === 401 && typeof window !== 'undefined') {
+                        const adminToken = localStorage.getItem('admin_access_token');
+                        const isAdminPath = window.location.pathname.startsWith('/admin') ||
+                            window.location.pathname.startsWith('/moderator');
+
+                        if (adminToken && isAdminPath) {
+                            console.warn('[API] Admin token expired — clearing and redirecting to login');
+                            localStorage.removeItem('admin_access_token');
+                            localStorage.removeItem('admin_user');
+                            setTimeout(() => {
+                                const loginPath = window.location.pathname.startsWith('/moderator')
+                                    ? '/moderator/login'
+                                    : '/admin/login';
+                                window.location.href = `${loginPath}?reason=expired`;
+                            }, 1500);
+                        }
+                    }
                 } else {
-                    // Something else happened
-                    apiError.message = error.message;
+                    // Network Error, CORS block or no response
+                    apiError.message = error.message || 'No response from server';
+                    apiError.status = 0;
                 }
                 return Promise.reject(apiError);
             }
         );
     }
+
 
     // Auth endpoints
     async generateTokens(sessionId: string, count: number): Promise<any> {

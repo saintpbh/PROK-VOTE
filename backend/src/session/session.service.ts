@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, Not } from 'typeorm';
-import { Session, Agenda, Voter, Token, VoteLog } from '../entities';
+import { Session, Agenda, Voter, Token, VoteLog, Vote } from '../entities';
 import { FingerprintService } from '../auth/fingerprint.service';
 import { CreateSessionDto, CreateAgendaDto } from './dto/session.dto';
 import { VotingGateway } from '../voting/voting.gateway';
@@ -32,6 +32,8 @@ export class SessionService {
         private voterRepository: Repository<Voter>,
         @InjectRepository(VoteLog)
         private voteLogRepository: Repository<VoteLog>,
+        @InjectRepository(Vote)
+        private voteRepository: Repository<Vote>,
         private auditService: AuditService,
     ) { }
 
@@ -178,10 +180,21 @@ export class SessionService {
             }
         }
 
-        // Block resuming a vote that has already ended or been announced
-        // Integrity rule: once ended, must re-create a new agenda to vote again
+        // If transitioning back to 'voting' from 'ended' or 'announced', trigger a re-vote:
+        // Clear all cast votes for this agenda and trash old vote logs to keep audit trail consistent.
         if (stage === 'voting' && (agenda.stage === 'ended' || agenda.stage === 'announced')) {
-            throw new ForbiddenException('종료된 투표를 재개할 수 없습니다. 새 안건을 상정해주세요.');
+            this.logger.log(`[Re-Vote] Initiating re-vote for agenda ${agendaId}. Clearing existing votes and trashing logs.`);
+            await this.voteRepository.delete({ agendaId });
+            await this.trashVoteLogs(agendaId);
+            
+            if (req) {
+                await this.auditService.log({
+                    eventType: 'ADMIN_INITIATE_REVOTE',
+                    sessionId: agenda.sessionId,
+                    eventData: { agendaId, title: agenda.title },
+                    req
+                });
+            }
         }
 
         const oldStage = agenda.stage;

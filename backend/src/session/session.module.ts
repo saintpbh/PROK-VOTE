@@ -2,7 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SessionController } from './session.controller';
 import { SessionService } from './session.service';
-import { Session, Agenda, Voter, VoteLog } from '../entities';
+import { Session, Agenda, Voter, VoteLog, Vote } from '../entities';
 import { AuthModule } from '../auth/auth.module';
 import { VotingModule } from '../voting/voting.module';
 import { UsersModule } from '../users/users.module';
@@ -11,7 +11,7 @@ import { AuditModule } from '../audit/audit.module';
 
 @Module({
     imports: [
-        TypeOrmModule.forFeature([Session, Agenda, Voter, VoteLog]),
+        TypeOrmModule.forFeature([Session, Agenda, Voter, VoteLog, Vote]),
         AuthModule, // Import AuthModule to access FingerprintService
         AuditModule,
         UsersModule,
