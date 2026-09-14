@@ -61,8 +61,32 @@ function StadiumContent() {
                 setForcePending(true);
                 setForceShowLogo(false);
                 isResetRef.current = false;
-                setAccessCode('1234');
+                setAccessCode('2089');
                 setStats(null);
+                return;
+            }
+
+            if (dummyStage === 'submitted') {
+                setCurrentStage('submitted');
+                setForcePending(false);
+                setForceShowLogo(false);
+                isResetRef.current = false;
+                setAccessCode('2089');
+                if (dummyType === 'MULTIPLE_CHOICE') {
+                    setStats({
+                        title: '제111회 교단 발전 정책 특별위원회 위원 선출의 건',
+                        description: '교단 미래 발전 전략 수립을 위한 특별위원회 위원을 추천 후보 중 선출합니다. 후보별 약력을 확인하시고 투표해 주시기 바랍니다.',
+                        type: 'MULTIPLE_CHOICE',
+                        options: ['기호 1번 김총대 목사 (서울노회)', '기호 2번 이총대 장로 (호남노회)', '기호 3번 박총대 목사 (영남노회)', '기호 4번 최총대 장로 (중부노회)'],
+                    });
+                } else {
+                    setStats({
+                        title: '제1호 안건: 총회 헌법 개정안 제1조 심의 의결의 건',
+                        description: '헌법위원회에서 상정한 제111회기 헌법 개정안에 대해 찬반 투표를 실시합니다. 충분한 토론 후 의결권을 행사해 주시기 바랍니다.',
+                        type: 'PROS_CONS',
+                        options: ['찬성', '반대', '기권'],
+                    });
+                }
                 return;
             }
 
@@ -146,8 +170,17 @@ function StadiumContent() {
                         title: activeAgenda.title,
                         description: activeAgenda.description,
                         type: activeAgenda.type,
+                        options: activeAgenda.options || [],
                     });
                 } else {
+                    setStats((prev: any) => ({
+                        ...(prev || {}),
+                        ...activeAgenda,
+                        title: activeAgenda.title,
+                        description: activeAgenda.description,
+                        type: activeAgenda.type,
+                        options: activeAgenda.options || [],
+                    }));
                     socketService.emit('stats:request', { agendaId: activeAgenda.id });
                 }
             } else {
@@ -199,9 +232,7 @@ function StadiumContent() {
                 setForcePending(false);
                 if (stage === 'submitted' || stage === 'voting' || stage === 'ended') {
                     isResetRef.current = false;
-                    if (agendaId) {
-                        socketService.emit('stats:request', { agendaId });
-                    }
+                    refreshState();
                 }
             });
 
@@ -361,26 +392,120 @@ function StadiumContent() {
                     </div>
                 )}
 
-                {/* ===== SUBMITTED (안건 상정 / 준비) ===== */}
+                {/* ===== SUBMITTED (안건 상정 / 투표 대기) ===== */}
                 {(!isPending && !forceShowLogo && currentStage === 'submitted' && stats) && (
-                    <div className="w-full max-w-5xl mx-auto flex flex-col items-center text-center animate-slide-in-bottom my-auto space-y-6">
-                        <div className="px-5 py-2 rounded-full text-base md:text-lg font-bold tracking-widest bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-lg">
-                            [안건 상정] 투표 시작 대기
+                    <div className="w-full max-w-6xl mx-auto flex flex-col items-center text-center animate-slide-in-bottom my-auto space-y-7 px-4">
+                        {/* 뱃지 영역: 상정 안내 + 투표 방식 */}
+                        <div className="flex flex-wrap items-center justify-center gap-3">
+                            <div className="px-5 py-2 rounded-full text-base md:text-xl font-extrabold tracking-wider bg-amber-500/25 text-amber-300 border-2 border-amber-500/50 shadow-xl flex items-center gap-2.5">
+                                <span className="w-3 h-3 rounded-full bg-amber-400 animate-ping" />
+                                <span>[안건 상정] 투표 개시 대기</span>
+                            </div>
+                            
+                            {(!stats.type || stats.type === 'PROS_CONS') && (
+                                <div className="px-5 py-2 rounded-full text-base md:text-xl font-extrabold tracking-wider bg-blue-500/25 text-blue-300 border-2 border-blue-500/50 shadow-xl">
+                                    🗳️ 투표 방식 : 찬반 투표 (찬성 / 반대 / 기권)
+                                </div>
+                            )}
+
+                            {stats.type === 'MULTIPLE_CHOICE' && (
+                                <div className="px-5 py-2 rounded-full text-base md:text-xl font-extrabold tracking-wider bg-purple-500/25 text-purple-300 border-2 border-purple-500/50 shadow-xl">
+                                    🗳️ 투표 방식 : 1개 선택
+                                </div>
+                            )}
+
+                            {stats.type === 'MULTIPLE_CHOICE_MULTI' && (
+                                <div className="px-5 py-2 rounded-full text-base md:text-xl font-extrabold tracking-wider bg-purple-500/25 text-purple-300 border-2 border-purple-500/50 shadow-xl">
+                                    🗳️ 투표 방식 : 복수 선택 가능
+                                </div>
+                            )}
+
+                            {stats.type === 'INPUT' && (
+                                <div className="px-5 py-2 rounded-full text-base md:text-xl font-extrabold tracking-wider bg-emerald-500/25 text-emerald-300 border-2 border-emerald-500/50 shadow-xl">
+                                    ✍️ 투표 방식 : 주관식 직접 입력
+                                </div>
+                            )}
                         </div>
-                        <h1 className="text-5xl md:text-7xl font-black text-white leading-tight drop-shadow-2xl max-w-5xl break-keep">
+
+                        {/* 안건 제목 */}
+                        <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight drop-shadow-2xl max-w-6xl break-keep">
                             {stats.title}
                         </h1>
-                        <div className="w-full max-w-3xl h-px" style={{ background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.2), transparent)' }} />
+
+                        <div className="w-full max-w-4xl h-px" style={{ background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.25), transparent)' }} />
+
+                        {/* 안건 설명 (있을 경우) */}
                         {stats.description && (
-                            <div className="p-6 md:p-8 rounded-3xl max-w-4xl w-full shadow-2xl border border-white/10 bg-slate-900/60 backdrop-blur-xl">
-                                <p className="text-2xl md:text-3xl leading-relaxed font-light break-keep whitespace-pre-wrap opacity-90 text-slate-100">
+                            <div className="p-6 md:p-8 rounded-3xl max-w-5xl w-full shadow-2xl border border-white/15 bg-slate-900/75 backdrop-blur-2xl text-left">
+                                <div className="text-xs md:text-sm font-bold text-amber-400/90 tracking-widest uppercase mb-2 flex items-center gap-2">
+                                    <span>📋 안건 제안 설명 및 의결 사항</span>
+                                </div>
+                                <p className="text-xl md:text-3xl leading-relaxed font-light break-keep whitespace-pre-wrap text-slate-100 opacity-95">
                                     {stats.description}
                                 </p>
                             </div>
                         )}
-                        <p className="text-2xl animate-pulse font-medium text-amber-400/80 pt-2">
-                            곧 투표가 개시됩니다. 전광판과 연결된 기기를 준비해주세요.
-                        </p>
+
+                        {/* 투표 선택지(옵션) 시각화 카드 */}
+                        {(!stats.type || stats.type === 'PROS_CONS') && (
+                            <div className="w-full max-w-4xl grid grid-cols-3 gap-4 md:gap-6 pt-2">
+                                <div className="p-5 md:p-7 rounded-2xl bg-emerald-950/40 border-2 border-emerald-500/50 shadow-xl shadow-emerald-950/40 flex flex-col items-center justify-center space-y-2 transform hover:scale-105 transition-transform">
+                                    <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center text-emerald-300 text-2xl md:text-3xl font-black">
+                                        ✓
+                                    </div>
+                                    <div className="text-3xl md:text-4xl font-black text-emerald-300">찬 성</div>
+                                    <div className="text-sm md:text-base text-emerald-400/80 font-medium">안건 승인</div>
+                                </div>
+
+                                <div className="p-5 md:p-7 rounded-2xl bg-rose-950/40 border-2 border-rose-500/50 shadow-xl shadow-rose-950/40 flex flex-col items-center justify-center space-y-2 transform hover:scale-105 transition-transform">
+                                    <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-rose-500/20 border-2 border-rose-400 flex items-center justify-center text-rose-300 text-2xl md:text-3xl font-black">
+                                        ✕
+                                    </div>
+                                    <div className="text-3xl md:text-4xl font-black text-rose-300">반 대</div>
+                                    <div className="text-sm md:text-base text-rose-400/80 font-medium">안건 부결</div>
+                                </div>
+
+                                <div className="p-5 md:p-7 rounded-2xl bg-slate-900/60 border-2 border-slate-500/40 shadow-xl flex flex-col items-center justify-center space-y-2 transform hover:scale-105 transition-transform">
+                                    <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-slate-700/30 border-2 border-slate-400 flex items-center justify-center text-slate-300 text-2xl md:text-3xl font-black">
+                                        –
+                                    </div>
+                                    <div className="text-3xl md:text-4xl font-black text-slate-300">기 권</div>
+                                    <div className="text-sm md:text-base text-slate-400/80 font-medium">의결권 유보</div>
+                                </div>
+                            </div>
+                        )}
+
+                        {(stats.type === 'MULTIPLE_CHOICE' || stats.type === 'MULTIPLE_CHOICE_MULTI') && stats.options && stats.options.length > 0 && (
+                            <div className="w-full max-w-5xl space-y-3 pt-2">
+                                <div className="text-sm md:text-base font-bold text-purple-300 tracking-wider">
+                                    선택지 항목 ({stats.options.length}개 보기)
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                                    {stats.options.map((opt: string, idx: number) => (
+                                        <div key={idx} className="p-4 md:p-5 rounded-2xl bg-slate-900/85 border-2 border-purple-500/35 shadow-xl flex items-center gap-4 text-left backdrop-blur-xl">
+                                            <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-purple-500/25 border-2 border-purple-400/60 flex items-center justify-center text-purple-200 text-xl md:text-2xl font-black shrink-0">
+                                                {idx + 1}
+                                            </div>
+                                            <div className="text-lg md:text-2xl font-bold text-white leading-snug break-keep">
+                                                {opt}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {stats.type === 'INPUT' && (
+                            <div className="p-6 rounded-2xl bg-slate-900/70 border-2 border-emerald-500/30 text-emerald-200 text-xl md:text-2xl font-medium">
+                                모바일 화면에서 직접 의견 또는 후보명을 입력하여 투표합니다.
+                            </div>
+                        )}
+
+                        {/* 하단 개시 대기 알림 */}
+                        <div className="flex items-center gap-3 text-xl md:text-2xl font-medium text-amber-300 animate-pulse pt-2">
+                            <span className="w-3 h-3 rounded-full bg-amber-400 animate-ping shrink-0" />
+                            <span>의장의 개시 선언 후 모바일 투표가 시작됩니다. 준비해 주시기 바랍니다.</span>
+                        </div>
                     </div>
                 )}
 
