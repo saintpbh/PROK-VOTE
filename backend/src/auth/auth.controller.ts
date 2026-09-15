@@ -22,7 +22,7 @@ import {
     UserLoginDto,
     GlobalAuthDto,
 } from './dto/auth.dto';
-import { Throttle } from '@nestjs/throttler';
+import { Throttle, SkipThrottle } from '@nestjs/throttler';
 
 import { AdminGuard } from './admin.guard';
 
@@ -94,6 +94,7 @@ export class AuthController {
      * Complete authentication via Global Link
      * POST /auth/global
      */
+    @SkipThrottle()
     @Post('global')
     @HttpCode(HttpStatus.OK)
     async globalAuth(@Body() dto: GlobalAuthDto, @Req() req: Request) {
@@ -184,5 +185,19 @@ export class AuthController {
     @HttpCode(HttpStatus.CREATED)
     async register(@Body() data: { username: string; password: string; email?: string }, @Req() req: Request) {
         return await this.authService.registerUser(data, req);
+    }
+
+    /**
+     * Re-verify access code to renew JWT (no QR re-scan needed)
+     * POST /auth/reverify
+     */
+    @Post('reverify')
+    @HttpCode(HttpStatus.OK)
+    async reverifyAccessCode(@Body() body: { voterId: string; sessionId: string; accessCode: string }) {
+        const result = await this.authService.reverifyAccessCode(body.voterId, body.sessionId, body.accessCode);
+        return {
+            success: true,
+            accessToken: result.accessToken,
+        };
     }
 }

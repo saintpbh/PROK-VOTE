@@ -26,6 +26,7 @@ export default function StageController({
     // ... existing state ...
     const [loading, setLoading] = useState(false);
     const [stats, setStats] = useState<any>(null);
+    const [onlineCount, setOnlineCount] = useState<number>(0);
 
     // ... existing stats logic ...
     useEffect(() => {
@@ -38,10 +39,22 @@ export default function StageController({
             }
         });
 
+        socketService.on('participant:count', (data: { count: number }) => {
+            setOnlineCount(data.count);
+        });
+
+        // Initial participant count
+        api.getParticipantCount(sessionId).then((res) => {
+            if (res?.success && typeof res.count === 'number') {
+                setOnlineCount(res.count);
+            }
+        }).catch(() => {});
+
         fetchStats();
 
         return () => {
             socketService.off('stats:updated');
+            socketService.off('participant:count');
         };
     }, [agendaId, sessionId]);
 
@@ -197,7 +210,7 @@ export default function StageController({
                             )}
 
                             <div className="text-xs text-muted-foreground text-center pt-2 border-t border-border/50">
-                                총 {stats.totalVotes}표 / {stats.totalParticipants}명 참가
+                                총 {stats.totalVotes}표 / {Math.max(onlineCount, stats.totalParticipants || 0, stats.totalVotes || 0)}명 재석
                             </div>
                         </div>
                     )}

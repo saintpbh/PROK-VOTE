@@ -142,6 +142,17 @@ export default function SessionManager() {
     useEffect(() => {
         if (currentSession) {
             fetchParticipantCount(currentSession.id);
+
+            // Listen for real-time participant count updates via Socket.IO
+            const { socketService } = require('@/lib/socket');
+            const handleCountUpdate = (data: { count: number }) => {
+                setParticipantCount(data.count);
+            };
+            socketService.on('participant:count', handleCountUpdate);
+
+            return () => {
+                socketService.off('participant:count', handleCountUpdate);
+            };
         }
     }, [currentSession]);
 

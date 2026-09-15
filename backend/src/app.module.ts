@@ -25,7 +25,7 @@ import { AuditModule } from './audit/audit.module';
         // Rate Limiting (Global)
         ThrottlerModule.forRoot([{
             ttl: 60000, // 1 minute
-            limit: 100, // 100 requests per minute per IP
+            limit: 300, // 300 requests per minute per IP (supports 2000 users behind shared NAT)
         }]),
 
         // Serve static files (uploads)
@@ -47,10 +47,12 @@ import { AuditModule } from './audit/audit.module';
                 entities: [__dirname + '/**/*.entity{.ts,.js}'],
                 synchronize: configService.get('DATABASE_SYNCHRONIZE') === 'true' || configService.get('NODE_ENV') === 'development',
                 logging: configService.get('NODE_ENV') === 'development' || configService.get('DATABASE_LOGGING') === 'true',
-                // Connection pool for 300+ concurrent users
+                // Connection pool for 2000+ concurrent users (max 5 instances × 50 = 250 conn)
                 extra: {
-                    max: 30,
-                    connectionTimeoutMillis: 5000,
+                    max: 50,
+                    connectionTimeoutMillis: 3000,
+                    idleTimeoutMillis: 10000,
+                    statement_timeout: 5000,
                 },
             }),
         }),

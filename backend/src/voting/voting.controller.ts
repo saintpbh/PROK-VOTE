@@ -9,14 +9,23 @@ import {
     HttpCode,
     HttpStatus,
     UnauthorizedException,
+    Inject,
+    forwardRef,
 } from '@nestjs/common';
 import { VotingService } from './voting.service';
+import { VotingGateway } from './voting.gateway';
 import { CastVoteDto } from './dto/voting.dto';
 import { VoterGuard } from '../auth/voter.guard';
+import { SkipThrottle } from '@nestjs/throttler';
 
+@SkipThrottle()
 @Controller('votes')
 export class VotingController {
-    constructor(private votingService: VotingService) { }
+    constructor(
+        private votingService: VotingService,
+        @Inject(forwardRef(() => VotingGateway))
+        private votingGateway: VotingGateway,
+    ) { }
 
     /**
      * Cast a vote
@@ -32,6 +41,12 @@ export class VotingController {
         // Use voterId from JWT for security (prevents spoofing)
         const voterId = req.user.voterId;
         const vote = await this.votingService.castVote(voterId, dto);
+
+        // Broadcast updated vote count to admin/stadium via Socket.IO
+        // This replaces the old flow where client emitted vote:cast via Socket.IO
+        setImmediate(() => {
+            this.votingGateway.broadcastVoteStats(dto.agendaId).catch(() => {});
+        });
 
         return {
             success: true,

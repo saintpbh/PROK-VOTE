@@ -4,6 +4,7 @@ import {
     Column,
     CreateDateColumn,
     UpdateDateColumn,
+    Index,
     ManyToOne,
     OneToMany,
     JoinColumn,
@@ -19,6 +20,7 @@ export class Agenda {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
+    @Index('idx_agendas_session')
     @Column({ type: 'uuid', name: 'session_id' })
     sessionId: string;
 
@@ -37,6 +39,7 @@ export class Agenda {
     @Column({ type: 'int', default: 0, name: 'display_order' })
     displayOrder: number;
 
+    @Index('idx_agendas_stage')
     @Column({ type: 'varchar', length: 50, default: 'pending' })
     stage: AgendaStage;
 

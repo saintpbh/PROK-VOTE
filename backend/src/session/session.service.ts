@@ -247,9 +247,7 @@ export class SessionService {
             relations: ['votes'],
         });
 
-        const totalParticipants = await this.sessionRepository.manager.getRepository('voters').count({
-            where: { sessionId },
-        });
+        const onlineVoters = this.votingGateway ? this.votingGateway.getOnlineVoterCount(sessionId) : 0;
 
         return agendas.map((agenda) => {
             const result: any = { ...agenda };
@@ -259,6 +257,7 @@ export class SessionService {
                 const approveCount = agenda.votes.filter((v) => v.choice === '찬성').length;
                 const rejectCount = agenda.votes.filter((v) => v.choice === '반대').length;
                 const abstainCount = agenda.votes.filter((v) => v.choice === '기권').length;
+                const totalParticipants = Math.max(onlineVoters, totalVotes);
 
                 result.stats = {
                     totalVotes,
@@ -349,9 +348,7 @@ export class SessionService {
     }
 
     async getParticipantCount(sessionId: string): Promise<number> {
-        return await this.sessionRepository.manager.getRepository('voters').count({
-            where: { sessionId },
-        });
+        return this.votingGateway.getOnlineVoterCount(sessionId);
     }
 
     async exportSessionData(sessionId: string, user?: any): Promise<string> {
@@ -645,5 +642,59 @@ export class SessionService {
             ].join(','));
         }
         return rows.join('\n');
+    }
+
+    /**
+     * Fast vote check for voter-state polling endpoint
+     * Uses EXISTS query — stops at first match, no full row fetch
+     */
+    async hasVoterVoted(voterId: string, agendaId: string): Promise<boolean> {
+        const count = await this.voteRepository.count({
+            where: { voterId, agendaId },
+            take: 1,
+        });
+        return count > 0;
+    }
+
+    /**
+     * Delete simulation voters by name prefix (admin only)
+     */
+    async deleteSimulationVoters(sessionId: string, prefix: string): Promise<{ deleted: number; remaining: number }> {
+        const manager = this.voterRepository.manager;
+
+        try {
+            // Increase timeout for bulk delete
+            await manager.query(`SET statement_timeout = '60s'`);
+
+            // Delete votes cast by sim voters
+            await manager.query(`
+                DELETE FROM votes WHERE "voter_id" IN (
+                    SELECT id FROM voters WHERE "session_id" = $1 AND name LIKE $2
+                )
+            `, [sessionId, `${prefix}%`]);
+
+            // Nullify audit log references
+            await manager.query(`
+                UPDATE audit_logs SET voter_id = NULL WHERE voter_id IN (
+                    SELECT id FROM voters WHERE "session_id" = $1 AND name LIKE $2
+                )
+            `, [sessionId, `${prefix}%`]);
+
+            // Delete sim voters
+            const result = await manager.query(`
+                DELETE FROM voters WHERE "session_id" = $1 AND name LIKE $2
+            `, [sessionId, `${prefix}%`]);
+
+            // Reset timeout
+            await manager.query(`SET statement_timeout = DEFAULT`);
+
+            const deleted = result[1] || 0;
+            const remaining = await this.voterRepository.count({ where: { sessionId } });
+            return { deleted, remaining };
+        } catch (error: any) {
+            await manager.query(`SET statement_timeout = DEFAULT`).catch(() => {});
+            this.logger.error(`Failed to delete sim voters: ${error.message}`, error.stack);
+            throw error;
+        }
     }
 }

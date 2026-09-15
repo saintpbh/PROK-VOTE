@@ -3,6 +3,7 @@ import {
     PrimaryGeneratedColumn,
     Column,
     CreateDateColumn,
+    Index,
     ManyToOne,
     OneToOne,
     OneToMany,
@@ -21,6 +22,7 @@ export class Voter {
     @Column({ type: 'uuid', name: 'token_id', nullable: true })
     tokenId: string;
 
+    @Index('idx_voters_session')
     @Column({ type: 'uuid', name: 'session_id' })
     sessionId: string;
 

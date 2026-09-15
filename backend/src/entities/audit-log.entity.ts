@@ -3,6 +3,7 @@ import {
     PrimaryGeneratedColumn,
     Column,
     CreateDateColumn,
+    Index,
     ManyToOne,
     JoinColumn,
 } from 'typeorm';
@@ -15,6 +16,7 @@ export class AuditLog {
     id: string;
 
 
+    @Index('idx_audit_event_type')
     @Column({ type: 'varchar', length: 100, name: 'event_type' })
     eventType: string;
 
@@ -27,6 +29,7 @@ export class AuditLog {
     @Column({ type: 'text', nullable: true, name: 'user_agent' })
     userAgent: string;
 
+    @Index('idx_audit_created_at')
     @CreateDateColumn({ name: 'created_at' })
     createdAt: Date;
 

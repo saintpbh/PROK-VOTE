@@ -13,6 +13,7 @@ import {
     UseGuards,
     Res,
     Req,
+    Headers,
 } from '@nestjs/common';
 import { Response, Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -22,6 +23,7 @@ import { SessionService } from './session.service';
 import { CreateSessionDto, CreateAgendaDto, UpdateAgendaStageDto, UpdateSessionSettingsDto } from './dto/session.dto';
 import { AdminGuard } from '../auth/admin.guard';
 import { VotingGateway } from '../voting/voting.gateway';
+import { SkipThrottle } from '@nestjs/throttler';
 
 @Controller('sessions')
 export class SessionController {
@@ -97,6 +99,132 @@ export class SessionController {
     }
 
     /**
+     * Lightweight voter state for HTTP short-polling (replaces Socket.IO for 2000 voters)
+     * GET /sessions/:id/voter-state?voterId=xxx
+     * 
+     * Designed for 667 req/s (2000 users × 3s interval):
+     * - Single DB query (getSessionWithAgendas)
+     * - In-memory vote check (voteCounters)
+     * - In-memory online count (sessionVoterSets)
+     * - No auth guard (voterId in query, response has no sensitive data)
+     */
+    @SkipThrottle()
+    @Get(':id/voter-state')
+    async getVoterState(
+        @Param('id') id: string,
+        @Req() req: Request,
+        @Headers('authorization') authHeader?: string,
+    ) {
+        const voterId = req.query.voterId as string;
+        const session = await this.sessionService.getSessionWithAgendas(id);
+        if (!session) {
+            return { success: false, stage: 'waiting' };
+        }
+
+        // Check if voter needs re-authentication (access code was changed)
+        let requireReauth = false;
+        if (authHeader) {
+            try {
+                const jwt = authHeader.replace('Bearer ', '');
+                const payload = JSON.parse(Buffer.from(jwt.split('.')[1], 'base64').toString());
+                if (payload.iat && this.votingGateway.needsReauth(id, payload.iat)) {
+                    requireReauth = true;
+                }
+            } catch (e) { /* ignore decode errors */ }
+        }
+
+        const agendas = session.agendas || [];
+        
+        // Find active agenda (voting > submitted > ended/announced)
+        let activeAgenda = agendas.find((a: any) => a.stage === 'voting');
+        if (!activeAgenda) {
+            activeAgenda = agendas.find((a: any) => a.stage === 'submitted');
+        }
+
+        // Find last announced/ended agenda for results display
+        let lastAnnounced = null;
+        if (!activeAgenda) {
+            const reversed = [...agendas].reverse();
+            lastAnnounced = reversed.find((a: any) => a.stage === 'announced' || a.stage === 'ended');
+        }
+
+        const agenda = activeAgenda || lastAnnounced;
+        // Register voter as "online" via polling heartbeat
+        // (replaces Socket.IO join:session for attendance tracking)
+        if (voterId) {
+            const prevCount = this.votingGateway.getOnlineVoterCount(id);
+            this.votingGateway.addVoterToSession(id, voterId);
+            const newCount = this.votingGateway.getOnlineVoterCount(id);
+            // Only broadcast if count actually changed (new voter joined)
+            if (newCount > prevCount) {
+                this.votingGateway.debouncedBroadcastParticipantCount(id);
+            }
+        }
+
+        const onlineCount = this.votingGateway.getOnlineVoterCount(id);
+
+        // Determine voter state
+        let stage: string;
+        let hasVoted = false;
+
+        if (activeAgenda?.stage === 'voting') {
+            stage = 'voting';
+            // Check if voter already voted (fast: in-memory or single DB query)
+            if (voterId) {
+                try {
+                    hasVoted = await this.sessionService.hasVoterVoted(voterId, activeAgenda.id);
+                } catch(e) { hasVoted = false; }
+            }
+        } else if (activeAgenda?.stage === 'submitted') {
+            stage = 'submitted';
+        } else if (lastAnnounced?.stage === 'announced') {
+            stage = 'announced';
+        } else if (lastAnnounced?.stage === 'ended') {
+            stage = 'ended';
+        } else {
+            stage = 'waiting';
+        }
+
+        return {
+            success: true,
+            stage,
+            agendaId: agenda?.id || null,
+            agendaTitle: agenda?.title || null,
+            agendaDescription: agenda?.description || null,
+            agendaType: agenda?.type || null,
+            agendaOptions: agenda?.options || null,
+            hasVoted,
+            onlineCount,
+            requireReauth,
+            timestamp: new Date().toISOString(),
+        };
+    }
+
+    /**
+     * Reset online voter count (for testing)
+     * DELETE /sessions/:id/online-voters
+     */
+    @Delete(':id/online-voters')
+    @UseGuards(AdminGuard)
+    async resetOnlineVoters(@Param('id') id: string) {
+        this.votingGateway.clearSessionVoters(id);
+        this.votingGateway.broadcastParticipantCount(id);
+        return { success: true, message: 'Online voter count reset to 0' };
+    }
+
+    /**
+     * Delete simulation voters by name prefix
+     * DELETE /sessions/:id/sim-voters?prefix=sim-
+     */
+    @Delete(':id/sim-voters')
+    @UseGuards(AdminGuard)
+    async deleteSimVoters(@Param('id') id: string, @Req() req: Request) {
+        const prefix = (req.query.prefix as string) || 'sim-';
+        const result = await this.sessionService.deleteSimulationVoters(id, prefix);
+        return { success: true, ...result };
+    }
+
+    /**
      * Delete a session
      * DELETE /sessions/:id
      */
@@ -118,7 +246,14 @@ export class SessionController {
     async updateAccessCode(@Param('id') id: string, @Req() req: any) {
         const session = await this.sessionService.updateAccessCode(id, req.user);
 
-        // Broadcast to all connected voters → force re-authentication
+        // Mark session for force re-auth (HTTP polling voters)
+        this.votingGateway.setForceReauth(id);
+
+        // Reset online count to 0 — rebuilds as voters re-enter new code
+        this.votingGateway.clearSessionVoters(id);
+        this.votingGateway.broadcastParticipantCount(id);
+
+        // Broadcast to Socket.IO connected voters
         this.votingGateway.broadcastSettingsUpdate(id, {
             accessCode: session.accessCode,
             forceReAuth: true,

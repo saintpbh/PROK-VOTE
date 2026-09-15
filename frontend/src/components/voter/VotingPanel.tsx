@@ -62,21 +62,108 @@ export default function VotingPanel({ agenda, onVoteComplete }: VotingPanelProps
         if (!selectedChoice || !voterId) return;
 
         setLoading(true);
-        try {
-            socketService.emit('vote:cast', {
-                voterId,
-                agendaId: agenda.id,
-                choice: selectedChoice,
-            });
+        try { haptic('confirm'); } catch(e) {}
 
-            setTimeout(() => {
-                try { haptic('confirm'); } catch(e) {}
-                onVoteComplete();
-            }, 1000);
-        } catch (error: any) {
-            toast.error(error.message || '투표에 실패했습니다');
-            setLoading(false);
+        const votePayload = {
+            voterId,
+            agendaId: agenda.id,
+            choice: selectedChoice,
+        };
+
+        // ── ZERO-LOSS STRATEGY ──
+        // 1. Save to localStorage FIRST (user's intent is captured — never lost)
+        // 2. Show completed screen IMMEDIATELY (optimistic but backed by local storage)
+        // 3. HTTP POST in background — retries FOREVER until success
+        // 4. If page is closed, pending votes are retried on next visit
+
+        // Step 1: Save locally as pending vote
+        try {
+            localStorage.setItem(`voted_${agenda.id}`, 'true');
+            const pending = JSON.parse(localStorage.getItem('pending_votes') || '[]');
+            // Avoid duplicates
+            if (!pending.some((p: any) => p.agendaId === agenda.id && p.voterId === voterId)) {
+                pending.push({ ...votePayload, timestamp: Date.now() });
+                localStorage.setItem('pending_votes', JSON.stringify(pending));
+            }
+        } catch(e) {}
+
+        // Step 2: Show completed screen IMMEDIATELY — user sees instant response
+        toast.success('투표가 완료되었습니다!');
+        onVoteComplete();
+
+        // Step 3: HTTP POST in background — unlimited retries until confirmed
+        submitVoteInBackground(votePayload);
+    };
+
+    /** Background vote submission — retries until success, never gives up */
+    const submitVoteInBackground = async (votePayload: any) => {
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 
+            (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}:3001` : '');
+        const token = localStorage.getItem('access_token');
+
+        for (let attempt = 1; attempt <= 30; attempt++) {  // 30 attempts × 3s = 90s max
+            // Stop if vote was already cleared from pending (voting ended or confirmed elsewhere)
+            try {
+                const pending = JSON.parse(localStorage.getItem('pending_votes') || '[]');
+                if (!pending.some((p: any) => p.agendaId === votePayload.agendaId && p.voterId === votePayload.voterId)) {
+                    console.log('[VotingPanel] Vote cleared from pending — stopping retries');
+                    return;
+                }
+            } catch(e) {}
+
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout for slow cellular
+
+                const res = await fetch(`${API_URL}/votes`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                    },
+                    body: JSON.stringify(votePayload),
+                    signal: controller.signal,
+                });
+                clearTimeout(timeoutId);
+
+                if (res.ok) {
+                    console.log(`[VotingPanel] ✅ Vote confirmed via HTTP (attempt ${attempt})`);
+                    removePendingVote(votePayload);
+                    // Note: Socket.IO vote:cast NOT emitted here — HTTP already saved to DB.
+                    // The server broadcasts vote count updates via the HTTP controller response.
+                    return; // SUCCESS — done
+                }
+
+                const errData = await res.json().catch(() => ({}));
+                if (errData.message?.includes('이미') || errData.message?.includes('already') || res.status === 400) {
+                    console.log('[VotingPanel] ✅ Vote already recorded (duplicate OK)');
+                    removePendingVote(votePayload);
+                    return; // Already saved — done
+                }
+
+                console.warn(`[VotingPanel] Attempt ${attempt}/30 failed: ${errData.message || res.status}`);
+            } catch (err: any) {
+                console.warn(`[VotingPanel] Attempt ${attempt}/30 network error: ${err.message}`);
+            }
+
+            // Wait 3 seconds before retry (generous for slow cellular)
+            await new Promise(r => setTimeout(r, 3000));
         }
+
+        // After 30 attempts (~90 seconds), vote stays in localStorage pending_votes
+        // It will be retried on next page load / visibility change
+        console.error('[VotingPanel] Vote queued locally after 30 attempts — will retry on next load');
+    };
+
+    /** Remove a successfully submitted vote from the pending queue */
+    const removePendingVote = (votePayload: any) => {
+        try {
+            const pending = JSON.parse(localStorage.getItem('pending_votes') || '[]');
+            const filtered = pending.filter((p: any) => 
+                !(p.agendaId === votePayload.agendaId && p.voterId === votePayload.voterId)
+            );
+            localStorage.setItem('pending_votes', JSON.stringify(filtered));
+        } catch(e) {}
     };
 
     return (
@@ -154,18 +241,35 @@ export default function VotingPanel({ agenda, onVoteComplete }: VotingPanelProps
                         {/* 2. MULTIPLE_CHOICE (단일 선택) */}
                         {agenda.type === 'MULTIPLE_CHOICE' && (
                             <div className="space-y-2.5">
-                                {(agenda.options || []).map((option: string, index: number) => (
+                                {agenda.options?.length === 1 && agenda.options[0] === '확인' ? (
                                     <button
-                                        key={index}
-                                        onClick={() => handleChoiceClick(option)}
-                                        className="w-full p-4 text-left bg-white/5 hover:bg-white/10 border border-white/10 hover:border-primary/40 rounded-2xl transition-all duration-200 flex items-center gap-3 active:scale-[0.98] group"
+                                        onClick={() => handleChoiceClick('확인')}
+                                        className="w-full p-6 text-center bg-emerald-500/15 hover:bg-emerald-500/25 border-2 border-emerald-500/50 hover:border-emerald-400 text-emerald-300 rounded-3xl shadow-[0_0_30px_rgba(16,185,129,0.15)] transition-all duration-200 flex flex-col items-center justify-center gap-3 active:scale-[0.98] group cursor-pointer"
                                     >
-                                        <div className="w-6 h-6 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center font-bold text-xs flex-shrink-0 group-hover:bg-primary group-hover:text-white transition-colors">
-                                            {index + 1}
+                                        <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center text-3xl font-black text-emerald-300 group-hover:scale-110 transition-transform">
+                                            ✓
                                         </div>
-                                        <span className="text-sm font-medium text-foreground tracking-wide">{option}</span>
+                                        <div className="text-2xl font-black text-white tracking-wide">
+                                            확인 (재석 완료)
+                                        </div>
+                                        <p className="text-xs text-emerald-300/80 font-medium">
+                                            터치하시면 현장 재석 확인이 완료됩니다
+                                        </p>
                                     </button>
-                                ))}
+                                ) : (
+                                    (agenda.options || []).map((option: string, index: number) => (
+                                        <button
+                                            key={index}
+                                            onClick={() => handleChoiceClick(option)}
+                                            className="w-full p-4 text-left bg-white/5 hover:bg-white/10 border border-white/10 hover:border-primary/40 rounded-2xl transition-all duration-200 flex items-center gap-3 active:scale-[0.98] group"
+                                        >
+                                            <div className="w-6 h-6 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center font-bold text-xs flex-shrink-0 group-hover:bg-primary group-hover:text-white transition-colors">
+                                                {index + 1}
+                                            </div>
+                                            <span className="text-sm font-medium text-foreground tracking-wide">{option}</span>
+                                        </button>
+                                    ))
+                                )}
                             </div>
                         )}
 

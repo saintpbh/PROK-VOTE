@@ -42,6 +42,7 @@ function StadiumContent() {
     const [logoUrl, setLogoUrl] = useState<string | null>(null);
     const [accessCode, setAccessCode] = useState<string | null>(null);
     const [sessionName, setSessionName] = useState<string | null>('');
+    const [participantCount, setParticipantCount] = useState<number>(0);
 
     // UI Control state
     const [forceShowLogo, setForceShowLogo] = useState(false);
@@ -62,6 +63,7 @@ function StadiumContent() {
                 setForceShowLogo(false);
                 isResetRef.current = false;
                 setAccessCode('2089');
+                setParticipantCount(568);
                 setStats(null);
                 return;
             }
@@ -140,6 +142,16 @@ function StadiumContent() {
                 }
                 if (sessionRes.session.accessCode) {
                     setAccessCode(sessionRes.session.accessCode);
+                }
+
+                // Fetch initial participant count
+                try {
+                    const countRes = await api.getParticipantCount(sessionId);
+                    if (countRes && typeof countRes.count === 'number') {
+                        setParticipantCount(countRes.count);
+                    }
+                } catch (e) {
+                    // Silent fallback — WebSocket will update
                 }
                 if (sessionRes.session.stadiumTheme) {
                     setTheme(sessionRes.session.stadiumTheme as Theme);
@@ -230,9 +242,13 @@ function StadiumContent() {
             socketService.on('stage:changed', ({ stage, agendaId }) => {
                 setCurrentStage(stage as Stage);
                 setForcePending(false);
-                if (stage === 'submitted' || stage === 'voting' || stage === 'ended') {
+                if (stage === 'submitted' || stage === 'voting') {
                     isResetRef.current = false;
                     refreshState();
+                } else if (stage === 'ended') {
+                    // Don't call refreshState() — vote:ended handler sets state directly.
+                    // refreshState() can race with DB update and reset to pending.
+                    isResetRef.current = false;
                 }
             });
 
@@ -252,6 +268,10 @@ function StadiumContent() {
                 if (settings.accessCode) {
                     setAccessCode(settings.accessCode);
                 }
+            });
+
+            socketService.on('participant:count', (data: { count: number }) => {
+                setParticipantCount(data.count);
             });
 
             socketService.on('stadium:control', ({ action }) => {
@@ -276,6 +296,7 @@ function StadiumContent() {
                 socketService.off('stage:changed');
                 socketService.off('vote:ended');
                 socketService.off('session:settings:update');
+                socketService.off('participant:count');
                 socketService.off('stadium:control');
             };
         }
@@ -385,6 +406,12 @@ function StadiumContent() {
                             <h2 className="text-5xl md:text-7xl font-black text-white tracking-tight drop-shadow-xl break-keep leading-tight max-w-4xl">
                                 {agendaTitle && agendaTitle !== '회의 진행 중' ? agendaTitle : '투표 대기 중'}
                             </h2>
+                            {participantCount >= 0 && (
+                                <p className="text-3xl md:text-4xl font-bold tracking-wide animate-fade-in"
+                                    style={{ color: `rgb(var(--primary))` }}>
+                                    ({participantCount.toLocaleString()}명 재석)
+                                </p>
+                            )}
                             <p className="text-xl text-white/60 font-light tracking-wide">
                                 회의 주최자가 안건을 상정하면 화면이 자동으로 전환됩니다.
                             </p>
@@ -395,12 +422,18 @@ function StadiumContent() {
                 {/* ===== SUBMITTED (안건 상정 / 투표 대기) ===== */}
                 {(!isPending && !forceShowLogo && currentStage === 'submitted' && stats) && (
                     <div className="w-full max-w-6xl mx-auto flex flex-col items-center text-center animate-slide-in-bottom my-auto space-y-7 px-4">
-                        {/* 뱃지 영역: 상정 안내 + 투표 방식 */}
+                        {/* 뱃지 영역: 상정 안내 + 투표 방식 + 재석 인원 */}
                         <div className="flex flex-wrap items-center justify-center gap-3">
                             <div className="px-5 py-2 rounded-full text-base md:text-xl font-extrabold tracking-wider bg-amber-500/25 text-amber-300 border-2 border-amber-500/50 shadow-xl flex items-center gap-2.5">
                                 <span className="w-3 h-3 rounded-full bg-amber-400 animate-ping" />
                                 <span>[안건 상정] 투표 개시 대기</span>
                             </div>
+
+                            {participantCount > 0 && (
+                                <div className="px-5 py-2 rounded-full text-base md:text-xl font-extrabold tracking-wider bg-emerald-500/20 text-emerald-300 border-2 border-emerald-500/40 shadow-xl flex items-center gap-2">
+                                    <span>👥 {participantCount.toLocaleString()}명 재석</span>
+                                </div>
+                            )}
                             
                             {(!stats.type || stats.type === 'PROS_CONS') && (
                                 <div className="px-5 py-2 rounded-full text-base md:text-xl font-extrabold tracking-wider bg-blue-500/25 text-blue-300 border-2 border-blue-500/50 shadow-xl">
@@ -409,8 +442,14 @@ function StadiumContent() {
                             )}
 
                             {stats.type === 'MULTIPLE_CHOICE' && (
-                                <div className="px-5 py-2 rounded-full text-base md:text-xl font-extrabold tracking-wider bg-purple-500/25 text-purple-300 border-2 border-purple-500/50 shadow-xl">
-                                    🗳️ 투표 방식 : 1개 선택
+                                <div className={`px-5 py-2 rounded-full text-base md:text-xl font-extrabold tracking-wider border-2 shadow-xl ${
+                                    stats.options?.length === 1 && stats.options[0] === '확인'
+                                        ? 'bg-emerald-500/25 text-emerald-300 border-emerald-500/50'
+                                        : 'bg-purple-500/25 text-purple-300 border-purple-500/50'
+                                }`}>
+                                    {stats.options?.length === 1 && stats.options[0] === '확인'
+                                        ? '📋 안건 유형 : 회원 점명 (재석 확인)'
+                                        : '🗳️ 투표 방식 : 1개 선택'}
                                 </div>
                             )}
 
@@ -475,7 +514,22 @@ function StadiumContent() {
                             </div>
                         )}
 
-                        {(stats.type === 'MULTIPLE_CHOICE' || stats.type === 'MULTIPLE_CHOICE_MULTI') && stats.options && stats.options.length > 0 && (
+                        {/* 회원점명 전용 안내 카드 */}
+                        {(stats.type === 'MULTIPLE_CHOICE' || stats.type === 'MULTIPLE_CHOICE_MULTI') && stats.options?.length === 1 && stats.options[0] === '확인' && (
+                            <div className="w-full max-w-2xl p-8 rounded-3xl bg-emerald-950/40 border-2 border-emerald-500/60 shadow-[0_0_60px_rgba(16,185,129,0.25)] flex flex-col items-center justify-center space-y-4 animate-scale-in">
+                                <div className="w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center text-emerald-300 text-4xl font-black animate-pulse">
+                                    ✓
+                                </div>
+                                <div className="text-3xl md:text-4xl font-black text-emerald-300 tracking-wide">
+                                    현장 회원 점명 (재석 확인)
+                                </div>
+                                <div className="text-xl text-white/90 font-medium">
+                                    모바일 투표 화면에서 <span className="text-emerald-300 font-bold">[확인]</span> 버튼을 터치해 주시기 바랍니다.
+                                </div>
+                            </div>
+                        )}
+
+                        {(stats.type === 'MULTIPLE_CHOICE' || stats.type === 'MULTIPLE_CHOICE_MULTI') && stats.options && stats.options.length > 0 && !(stats.options.length === 1 && stats.options[0] === '확인') && (
                             <div className="w-full max-w-5xl space-y-3 pt-2">
                                 <div className="text-sm md:text-base font-bold text-purple-300 tracking-wider">
                                     선택지 항목 ({stats.options.length}개 보기)
@@ -574,6 +628,26 @@ function StadiumContent() {
                                 </p>
                             </div>
                         </div>
+
+                        {/* 3. 투표자수 / 재석인원 표시 */}
+                        <div className="flex items-center justify-center gap-6 md:gap-10 pt-2">
+                            <div className="flex flex-col items-center gap-2 px-8 py-5 rounded-2xl border border-white/15 bg-white/5 backdrop-blur-xl shadow-lg">
+                                <span className="text-base md:text-lg font-bold text-white/60 tracking-wider">투표자 수</span>
+                                <span className="text-5xl md:text-6xl font-black tabular-nums text-white drop-shadow-lg"
+                                    style={{ color: `rgb(var(--primary))` }}>
+                                    {(stats?.totalVotes || 0).toLocaleString()}
+                                </span>
+                                <span className="text-base font-bold text-white/40">명</span>
+                            </div>
+                            <div className="text-4xl font-light text-white/30">/</div>
+                            <div className="flex flex-col items-center gap-2 px-8 py-5 rounded-2xl border border-white/15 bg-white/5 backdrop-blur-xl shadow-lg">
+                                <span className="text-base md:text-lg font-bold text-white/60 tracking-wider">재석 인원</span>
+                                <span className="text-5xl md:text-6xl font-black tabular-nums text-emerald-400 drop-shadow-lg">
+                                    {participantCount.toLocaleString()}
+                                </span>
+                                <span className="text-base font-bold text-white/40">명</span>
+                            </div>
+                        </div>
                     </div>
                 )}
 
@@ -633,7 +707,7 @@ function StadiumContent() {
                                                     >
                                                         {index + 1}
                                                     </div>
-                                                    <span className="text-4xl font-semibold whitespace-normal break-all pr-4">{option}</span>
+                                                    <span className="text-4xl font-semibold whitespace-normal break-all pr-4">{option === '확인' ? '확인 (재석 완료)' : option}</span>
                                                 </div>
                                                 <div className="flex items-baseline gap-2 shrink-0">
                                                     <span className="text-6xl font-black tabular-nums">{count}</span>
@@ -742,23 +816,37 @@ function StadiumContent() {
                             </div>
                         )}
 
-                        {/* 투표율 & 참여 */}
-                        <div className="mt-12 flex justify-center gap-20 p-6 rounded-3xl border border-white/5 shadow-2xl w-full max-w-2xl mx-auto"
-                            style={{ backgroundColor: `rgba(var(--surface), 0.3)`, backdropFilter: 'blur(10px)' }}>
-                            <div className="text-center">
-                                <div className="text-xl tracking-widest mb-2 opacity-60 font-medium">투표율</div>
-                                <div className="text-6xl font-black" style={{ color: `rgb(var(--primary))` }}>
-                                    {(stats.turnoutPercentage || 0).toFixed(1)}%
+                        {/* 투표율 / 점명 확인율 & 재석 참여 */}
+                        {(() => {
+                            const isAttendance = stats.type === 'ATTENDANCE' || (stats.options?.length === 1 && stats.options[0] === '확인');
+                            const displayParticipants = Math.max(participantCount || 0, stats?.totalParticipants || 0, stats?.totalVotes || 0);
+                            const displayTurnout = displayParticipants > 0
+                                ? ((stats?.totalVotes || 0) / displayParticipants) * 100
+                                : (stats?.turnoutPercentage || 0);
+
+                            return (
+                                <div className="mt-12 flex justify-center gap-20 p-6 rounded-3xl border border-white/5 shadow-2xl w-full max-w-2xl mx-auto"
+                                    style={{ backgroundColor: `rgba(var(--surface), 0.3)`, backdropFilter: 'blur(10px)' }}>
+                                    <div className="text-center">
+                                        <div className="text-xl tracking-widest mb-2 opacity-60 font-medium">
+                                            {isAttendance ? '점명 확인율' : '투표율'}
+                                        </div>
+                                        <div className="text-6xl font-black" style={{ color: `rgb(var(--primary))` }}>
+                                            {(displayTurnout || 0).toFixed(1)}%
+                                        </div>
+                                    </div>
+                                    <div className="w-px bg-white/10" />
+                                    <div className="text-center">
+                                        <div className="text-xl tracking-widest mb-2 opacity-60 font-medium">
+                                            {isAttendance ? '확인 / 재석' : '참여 / 재석'}
+                                        </div>
+                                        <div className="text-6xl font-black text-white">
+                                            {stats.totalVotes || 0} <span className="text-4xl opacity-40 font-bold">/ {displayParticipants || 0}</span>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="w-px bg-white/10" />
-                            <div className="text-center">
-                                <div className="text-xl tracking-widest mb-2 opacity-60 font-medium">참여 / 전체</div>
-                                <div className="text-6xl font-black text-white">
-                                    {stats.totalVotes || 0} <span className="text-4xl opacity-40 font-bold">/ {stats.totalParticipants || 0}</span>
-                                </div>
-                            </div>
-                        </div>
+                            );
+                        })()}
                     </div>
                 )}
             </main>

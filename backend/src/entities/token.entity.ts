@@ -3,6 +3,7 @@ import {
     PrimaryGeneratedColumn,
     Column,
     CreateDateColumn,
+    Index,
     ManyToOne,
     OneToOne,
     JoinColumn,
@@ -15,9 +16,11 @@ export class Token {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
+    @Index('idx_tokens_session')
     @Column({ type: 'uuid', name: 'session_id' })
     sessionId: string;
 
+    @Index('idx_tokens_fingerprint')
     @Column({ type: 'varchar', length: 255, nullable: true, name: 'device_fingerprint' })
     deviceFingerprint: string;
 

@@ -377,4 +377,39 @@ export class AuthService {
             message: 'Account created successfully. You can now log in.'
         };
     }
+
+    /**
+     * Re-verify access code for existing voter (JWT renewal without QR re-scan)
+     */
+    async reverifyAccessCode(
+        voterId: string,
+        sessionId: string,
+        accessCode: string,
+    ): Promise<{ accessToken: string }> {
+        // Find voter
+        const voter = await this.voterRepository.findOne({ where: { id: voterId, sessionId } });
+        if (!voter) {
+            throw new UnauthorizedException('Voter not found');
+        }
+
+        // Verify access code against session
+        const session = await this.sessionRepository.findOne({ where: { id: sessionId } });
+        if (!session) {
+            throw new UnauthorizedException('Session not found');
+        }
+
+        if (session.accessCode !== accessCode) {
+            throw new UnauthorizedException('잘못된 참여 코드입니다');
+        }
+
+        // Issue fresh JWT
+        const payload = {
+            voterId: voter.id,
+            sessionId: session.id,
+            tokenId: voter.tokenId,
+        };
+
+        const accessToken = this.jwtService.sign(payload);
+        return { accessToken };
+    }
 }

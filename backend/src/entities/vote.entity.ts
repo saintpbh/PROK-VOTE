@@ -3,6 +3,7 @@ import {
     PrimaryGeneratedColumn,
     Column,
     CreateDateColumn,
+    Index,
     ManyToOne,
     JoinColumn,
     Unique,
@@ -18,9 +19,11 @@ export class Vote {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
+    @Index('idx_votes_voter')
     @Column({ type: 'uuid', name: 'voter_id' })
     voterId: string;
 
+    @Index('idx_votes_agenda')
     @Column({ type: 'uuid', name: 'agenda_id' })
     agendaId: string;
 

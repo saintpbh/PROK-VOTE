@@ -92,7 +92,8 @@ export default function AgendaList({ sessionId, onAgendaSelect }: { sessionId: s
         if (formData.type === 'MULTIPLE_CHOICE' || formData.type === 'MULTIPLE_CHOICE_MULTI') {
             const validOptions = formData.options.filter(opt => opt.trim());
             const emptyCount = formData.options.length - validOptions.length;
-            if (validOptions.length < 2) {
+            const isAttendance = validOptions.length === 1 && validOptions[0] === '확인';
+            if (validOptions.length < 2 && !isAttendance) {
                 if (emptyCount > 0) {
                     toast.error(`옵션 내용을 입력해주세요 (${emptyCount}개 비어있음)`);
                 } else {
@@ -340,25 +341,32 @@ export default function AgendaList({ sessionId, onAgendaSelect }: { sessionId: s
                                 </div>
 
                                 {/* Results Display */}
-                                {(agenda.stats) && (
-                                    <div className="mt-3 pt-3 border-t border-border/50">
-                                        <div className="flex flex-wrap gap-4 text-sm">
-                                            <div className="font-semibold">
-                                                <span className="text-secondary mr-2">투표 결과:</span>
-                                                <span className="text-foreground">
-                                                    {(agenda.stats.turnout || 0)}% ({agenda.stats.totalVotes}/{agenda.stats.totalParticipants})
-                                                </span>
-                                            </div>
-                                            {(agenda.type === 'PROS_CONS' || !agenda.type) && (
-                                                <div className="flex gap-3">
-                                                    <span className="text-success">찬성 {agenda.stats.approveCount}</span>
-                                                    <span className="text-danger">반대 {agenda.stats.rejectCount}</span>
-                                                    <span className="text-muted-foreground">기권 {agenda.stats.abstainCount}</span>
+                                {(agenda.stats) && (() => {
+                                    const isAttendance = (agenda as any).voteType === 'ATTENDANCE' || (agenda.options?.length === 1 && agenda.options[0] === '확인');
+                                    return (
+                                        <div className="mt-3 pt-3 border-t border-border/50">
+                                            <div className="flex flex-wrap gap-4 text-sm items-center">
+                                                <div className="font-semibold">
+                                                    <span className="text-secondary mr-2">{isAttendance ? '점명 결과:' : '투표 결과:'}</span>
+                                                    <span className="text-foreground">
+                                                        {(agenda.stats.turnout || 0)}% ({agenda.stats.totalVotes}/{agenda.stats.totalParticipants}명 재석)
+                                                    </span>
                                                 </div>
-                                            )}
+                                                {isAttendance ? (
+                                                    <span className="text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                                                        확인 {agenda.stats.totalVotes}명
+                                                    </span>
+                                                ) : (agenda.type === 'PROS_CONS' || !agenda.type) ? (
+                                                    <div className="flex gap-3">
+                                                        <span className="text-success">찬성 {agenda.stats.approveCount}</span>
+                                                        <span className="text-danger">반대 {agenda.stats.rejectCount}</span>
+                                                        <span className="text-muted-foreground">기권 {agenda.stats.abstainCount}</span>
+                                                    </div>
+                                                ) : null}
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
+                                    );
+                                })()}
                             </div>
 
                             <div className="flex flex-col gap-1">
@@ -413,6 +421,35 @@ export default function AgendaList({ sessionId, onAgendaSelect }: { sessionId: s
                 <div className="flex flex-col max-h-[calc(90vh-6rem)]">
                     {/* Scrollable form area */}
                     <div className="flex-1 overflow-y-auto space-y-4 pr-1" data-scroll-area>
+                        {/* Quick Attendance Preset Button */}
+                        <div
+                            onClick={() => {
+                                setFormData({
+                                    title: '회원 점명 (재석 확인)',
+                                    description: '현장 재석 확인을 위해 모바일 투표 화면에서 [확인] 버튼을 눌러주세요.',
+                                    type: 'MULTIPLE_CHOICE',
+                                    options: ['확인'],
+                                    isImportant: false,
+                                });
+                            }}
+                            className="p-3 rounded-xl border-2 border-dashed border-emerald-500/50 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 cursor-pointer flex items-center justify-between transition-all"
+                        >
+                            <div className="flex items-center gap-2.5">
+                                <span className="text-xl">📋</span>
+                                <div>
+                                    <div className="text-sm font-extrabold text-emerald-300">
+                                        회원점명 안건 빠른 템플릿
+                                    </div>
+                                    <div className="text-xs text-emerald-400/80">
+                                        선택옵션 &apos;확인&apos; 1개로 현장 재석 인원을 확인합니다
+                                    </div>
+                                </div>
+                            </div>
+                            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-200 border border-emerald-500/40">
+                                자동 입력
+                            </span>
+                        </div>
+
                         <Input
                             label="안건 제목"
                             placeholder="예: 제1호 안건 - 회의록 승인"
@@ -444,73 +481,122 @@ export default function AgendaList({ sessionId, onAgendaSelect }: { sessionId: s
                                     { id: 'MULTIPLE_CHOICE', label: '다지선다(1개)' },
                                     { id: 'MULTIPLE_CHOICE_MULTI', label: '다지선다(복수)' },
                                     { id: 'INPUT', label: '입력(주관식)' },
-                                ].map((type) => (
-                                    <div
-                                        key={type.id}
-                                        onClick={() => setFormData({ ...formData, type: type.id as any })}
-                                        className={`cursor-pointer p-3 rounded-lg border-2 text-center transition-all ${formData.type === type.id
-                                            ? 'border-primary bg-primary/5 text-primary font-bold'
-                                            : 'border-border hover:border-muted-foreground/50'
+                                    { id: 'ATTENDANCE', label: '📋 회원점명 (재석확인 - 확인 1개)' },
+                                ].map((type) => {
+                                    const isAttendanceActive = type.id === 'ATTENDANCE' && 
+                                        formData.type === 'MULTIPLE_CHOICE' && 
+                                        formData.options.length === 1 && 
+                                        formData.options[0] === '확인';
+                                    const isSelected = type.id === 'ATTENDANCE' 
+                                        ? isAttendanceActive 
+                                        : (formData.type === type.id && !isAttendanceActive);
+
+                                    return (
+                                        <div
+                                            key={type.id}
+                                            onClick={() => {
+                                                if (type.id === 'ATTENDANCE') {
+                                                    setFormData({
+                                                        ...formData,
+                                                        title: formData.title || '회원 점명 (재석 확인)',
+                                                        description: formData.description || '현장 재석 확인을 위해 모바일 투표 화면에서 [확인] 버튼을 눌러주세요.',
+                                                        type: 'MULTIPLE_CHOICE',
+                                                        options: ['확인']
+                                                    });
+                                                } else {
+                                                    setFormData({
+                                                        ...formData,
+                                                        type: type.id as any,
+                                                        options: formData.options.length === 1 && formData.options[0] === '확인'
+                                                            ? ['', '']
+                                                            : formData.options
+                                                    });
+                                                }
+                                            }}
+                                            className={`cursor-pointer p-3 rounded-lg border-2 text-center transition-all ${
+                                                type.id === 'ATTENDANCE' ? 'col-span-2' : ''
+                                            } ${isSelected
+                                                ? type.id === 'ATTENDANCE'
+                                                    ? 'border-emerald-500 bg-emerald-500/15 text-emerald-400 font-bold shadow-md shadow-emerald-500/20'
+                                                    : 'border-primary bg-primary/5 text-primary font-bold'
+                                                : 'border-border hover:border-muted-foreground/50'
                                             }`}
-                                    >
-                                        {type.label}
-                                    </div>
-                                ))}
+                                        >
+                                            {type.label}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
 
                         {(formData.type === 'MULTIPLE_CHOICE' || formData.type === 'MULTIPLE_CHOICE_MULTI') && (
-                            <div className="space-y-2 p-4 bg-muted/30 rounded-lg">
-                                <label className="text-sm font-medium text-foreground block">
-                                    투표 옵션 설정 (최소 2개)
-                                    {formData.type === 'MULTIPLE_CHOICE_MULTI' && (
-                                        <span className="text-xs text-secondary ml-2">(복수선택 가능)</span>
-                                    )}
-                                </label>
-                                {formData.options.map((option, index) => (
-                                    <div key={index} className="flex gap-2">
-                                        <Input
-                                            placeholder={`옵션 ${index + 1}의 내용을 입력하세요`}
-                                            value={option}
-                                            onChange={(e) => {
-                                                const newOptions = [...formData.options];
-                                                newOptions[index] = e.target.value;
-                                                setFormData({ ...formData, options: newOptions });
-                                            }}
-                                            className={!option.trim() ? 'border-danger/50' : ''}
-                                        />
-                                        <Button
-                                            variant="danger"
-                                            size="sm"
-                                            onClick={() => {
-                                                const newOptions = formData.options.filter((_, i) => i !== index);
-                                                setFormData({ ...formData, options: newOptions });
-                                            }}
-                                            disabled={formData.options.length <= 1}
-                                        >
-                                            ✕
-                                        </Button>
+                            formData.options.length === 1 && formData.options[0] === '확인' ? (
+                                <div className="p-4 bg-emerald-500/10 border-2 border-emerald-500/30 rounded-xl space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm font-bold text-emerald-400 flex items-center gap-2">
+                                            <span>✓</span> 선택 옵션: &apos;확인&apos; (단일 옵션)
+                                        </span>
+                                        <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
+                                            회원점명 전용
+                                        </span>
                                     </div>
-                                ))}
-                                <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    onClick={() => {
-                                        setFormData({ ...formData, options: [...formData.options, ''] });
-                                        // Auto-scroll to bottom after adding
-                                        setTimeout(() => {
-                                            const scrollArea = document.querySelector('[data-scroll-area]');
-                                            if (scrollArea) scrollArea.scrollTop = scrollArea.scrollHeight;
-                                        }, 50);
-                                    }}
-                                    fullWidth
-                                >
-                                    + 옵션 추가
-                                </Button>
-                                {formData.options.some(o => !o.trim()) && (
-                                    <p className="text-xs text-danger">⚠ 비어있는 옵션에 내용을 입력해주세요</p>
-                                )}
-                            </div>
+                                    <p className="text-xs text-muted-foreground leading-relaxed">
+                                        총대원은 모바일 투표 화면에서 [확인] 버튼 1번만 터치하여 즉시 현장 재석 확인을 완료합니다.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="space-y-2 p-4 bg-muted/30 rounded-lg">
+                                    <label className="text-sm font-medium text-foreground block">
+                                        투표 옵션 설정 (최소 2개)
+                                        {formData.type === 'MULTIPLE_CHOICE_MULTI' && (
+                                            <span className="text-xs text-secondary ml-2">(복수선택 가능)</span>
+                                        )}
+                                    </label>
+                                    {formData.options.map((option, index) => (
+                                        <div key={index} className="flex gap-2">
+                                            <Input
+                                                placeholder={`옵션 ${index + 1}의 내용을 입력하세요`}
+                                                value={option}
+                                                onChange={(e) => {
+                                                    const newOptions = [...formData.options];
+                                                    newOptions[index] = e.target.value;
+                                                    setFormData({ ...formData, options: newOptions });
+                                                }}
+                                                className={!option.trim() ? 'border-danger/50' : ''}
+                                            />
+                                            <Button
+                                                variant="danger"
+                                                size="sm"
+                                                onClick={() => {
+                                                    const newOptions = formData.options.filter((_, i) => i !== index);
+                                                    setFormData({ ...formData, options: newOptions });
+                                                }}
+                                                disabled={formData.options.length <= 1}
+                                            >
+                                                ✕
+                                            </Button>
+                                        </div>
+                                    ))}
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={() => {
+                                            setFormData({ ...formData, options: [...formData.options, ''] });
+                                            // Auto-scroll to bottom after adding
+                                            setTimeout(() => {
+                                                const scrollArea = document.querySelector('[data-scroll-area]');
+                                                if (scrollArea) scrollArea.scrollTop = scrollArea.scrollHeight;
+                                            }, 50);
+                                        }}
+                                        fullWidth
+                                    >
+                                        + 옵션 추가
+                                    </Button>
+                                    {formData.options.some(o => !o.trim()) && (
+                                        <p className="text-xs text-danger">⚠ 비어있는 옵션에 내용을 입력해주세요</p>
+                                    )}
+                                </div>
+                            )
                         )}
 
                         <div className="flex items-center gap-3 p-3 bg-danger/10 rounded-lg border border-danger/30">

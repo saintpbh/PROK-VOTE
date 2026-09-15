@@ -47,12 +47,16 @@ class SocketService {
         this.socket = io(SOCKET_URL, {
             autoConnect: true,
             reconnection: true,
-            reconnectionAttempts: this.maxReconnectAttempts,
-            reconnectionDelay: 1000,
-            reconnectionDelayMax: 5000,
-            timeout: 20000,
-            transports: isIOS ? ['polling'] : ['polling', 'websocket'],
-            upgrade: !isIOS,
+            reconnectionAttempts: 15,     // 10 → 15: more resilient on unstable cellular
+            reconnectionDelay: 300,       // 500 → 300ms: faster first retry
+            reconnectionDelayMax: 2000,   // 3000 → 2000ms: cap retry delay
+            randomizationFactor: 0.3,     // prevent thundering herd on mass reconnect
+            timeout: 10000,
+            // POLLING ONLY: Cloud Run hard limit = 1000 concurrent requests per instance.
+            // WebSocket = 1 persistent concurrent request per connection → 2000 users = 2000 concurrent → 503 errors.
+            // Polling = each poll is ~100ms → 2000 users × 15s interval = ~130 concurrent at any moment → safe.
+            transports: ['polling'],
+            upgrade: false,
             auth: (cb) => {
                 const adminToken = typeof window !== 'undefined' ? localStorage.getItem('admin_access_token') : null;
                 const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
