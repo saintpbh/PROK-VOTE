@@ -191,6 +191,7 @@ export class AuthController {
      * Re-verify access code to renew JWT (no QR re-scan needed)
      * POST /auth/reverify
      */
+    @SkipThrottle()
     @Post('reverify')
     @HttpCode(HttpStatus.OK)
     async reverifyAccessCode(@Body() body: { voterId: string; sessionId: string; accessCode: string }) {
